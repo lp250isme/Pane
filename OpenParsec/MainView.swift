@@ -401,7 +401,11 @@ struct MainView: View {
 				.zIndex(1)
 			}
 			.onAppear(perform: initView)
-			.onDisappear { ParsecBackgroundManager.shared.onShortcutReconnect = nil }
+			.onDisappear {
+				if ParsecBackgroundManager.shared.ownsStream(ParsecBackgroundManager.shared.keyWindowScene) {
+					ParsecBackgroundManager.shared.onShortcutReconnect = nil
+				}
+			}
 			.disabled(busy) // disable view if busy
 
 			// Settings screen
@@ -446,13 +450,11 @@ struct MainView: View {
 		refreshSelf()
 		refreshFriends()
 
-		ParsecBackgroundManager.shared.onShouldReconnect = { peerId in
-			if let host = hosts.first(where: { $0.id == peerId }) {
-				connectTo(host)
-			} else {
-				refreshHosts()
-			}
-		}
+		// the reconnect hooks are app wide; a second window must not take them from the streaming one
+		// ponytail: assumes the appearing window is key, true for a newly opened window
+		guard ParsecBackgroundManager.shared.ownsStream(ParsecBackgroundManager.shared.keyWindowScene) else { return }
+
+		registerReconnectHooks()
 
 		NetworkWatcher.shared.onReturn = {
 			guard NetworkHandler.clinfo != nil, !ParsecBackgroundManager.shared.hasActiveConnection else { return }
@@ -461,9 +463,6 @@ struct MainView: View {
 		}
 		NetworkWatcher.shared.start()
 
-		ParsecBackgroundManager.shared.onShortcutReconnect = {
-			if !isConnecting { reconnectLastHost() }
-		}
 		let pending = ParsecBackgroundManager.shared.reconnectPending
 		ParsecBackgroundManager.shared.reconnectPending = false
 
@@ -471,6 +470,20 @@ struct MainView: View {
 			if (SettingsHandler.autoConnectOnLaunch && ParsecBackgroundManager.shared.resumeOnLaunch || pending) && !isConnecting && !ParsecBackgroundManager.shared.hasActiveConnection, ParsecBackgroundManager.shared.lastPeerId != nil {
 				reconnectLastHost()
 			}
+		}
+	}
+
+	// connectTo calls this too, so the hooks follow whichever window is streaming
+	func registerReconnectHooks() {
+		ParsecBackgroundManager.shared.onShouldReconnect = { peerId in
+			if let host = hosts.first(where: { $0.id == peerId }) {
+				connectTo(host)
+			} else {
+				refreshHosts()
+			}
+		}
+		ParsecBackgroundManager.shared.onShortcutReconnect = {
+			if !isConnecting { reconnectLastHost() }
 		}
 	}
 
@@ -671,7 +684,22 @@ struct MainView: View {
 			return
 		}
 
-		if let window = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).flatMap({ $0.windows }).first(where: { $0.isKeyWindow }) {
+		let keyWindow = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).flatMap({ $0.windows }).first(where: { $0.isKeyWindow })
+		// the SDK holds one connection; a second window must not take it over
+		if ParsecBackgroundManager.shared.hasActiveConnection, let owner = ParsecBackgroundManager.shared.streamScene, owner !== keyWindow?.windowScene {
+			withAnimation {
+				isConnecting = false
+				waitingForApproval = false
+				retryingConnect = false
+			}
+			baseAlertText = "Already streaming in another window"
+			showBaseAlert = true
+			return
+		}
+		ParsecBackgroundManager.shared.streamScene = keyWindow?.windowScene
+		registerReconnectHooks()
+
+		if let window = keyWindow {
 			let scale = window.screen.nativeScale
 			ParsecResolution.updateClientResolution(width: Int(window.bounds.width * scale), height: Int(window.bounds.height * scale))
 		}

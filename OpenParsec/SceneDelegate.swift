@@ -29,6 +29,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 	}
 
 	func sceneDidDisconnect(_ scene: UIScene) {
+		guard ParsecBackgroundManager.shared.ownsStream(scene) else { return }
 		if ParsecBackgroundManager.shared.hasActiveConnection {
 			CParsec.sendReleaseMessage()
 			CParsec.disconnect()
@@ -38,6 +39,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 	private var pendingUnpause: DispatchWorkItem?
 
 	func sceneDidBecomeActive(_ scene: UIScene) {
+		guard ParsecBackgroundManager.shared.ownsStream(scene) else { return }
 		if #available(iOS 15.0, *) {
 			PictureInPictureManager.shared.stopPiP()
 			if PictureInPictureManager.shared.stopFramePump() {
@@ -61,6 +63,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 	}
 
 	func sceneWillResignActive(_ scene: UIScene) {
+		guard ParsecBackgroundManager.shared.ownsStream(scene) else { return }
 		if ParsecBackgroundManager.shared.hasActiveConnection {
 			CParsec.sendReleaseMessage()
 		}
@@ -71,6 +74,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 	}
 
 	func sceneDidEnterBackground(_ scene: UIScene) {
+		guard ParsecBackgroundManager.shared.ownsStream(scene) else { return }
 		pendingUnpause?.cancel()
 		pendingUnpause = nil
 		var pipAttempted = false

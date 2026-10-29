@@ -89,8 +89,13 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	var menuEdgeSwipeRight: UIScreenEdgePanGestureRecognizer?
 	var scrollView: UIScrollView!
 	var contentView: UIView!
-	var lastLaidOutWidth: CGFloat = 0
-	var lastLaidOutHeight: CGFloat = 0
+	var lastLaidOutFrame: CGRect = .zero
+
+	// the window's own screen: a foldable moves the scene between the outer and inner panel
+	var screenScale: CGFloat {
+		let s = traitCollection.displayScale
+		return s > 0 ? s : UIScreen.main.scale   // 0 until the view is in a window
+	}
 
 	override var prefersPointerLocked: Bool {
 		return true
@@ -127,7 +132,7 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	}
 
 	func computeRenderScale() -> CGFloat {
-		let nativeScale = UIScreen.main.nativeScale
+		let nativeScale = view.window?.windowScene?.screen.nativeScale ?? screenScale
 		guard scrollView.zoomScale > 1.01 else { return nativeScale }
 		let vw = glkView.renderView.frame.size.width
 		let vh = glkView.renderView.frame.size.height
@@ -307,6 +312,11 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 		menuEdgeSwipe = addMenuEdgeSwipe(.left)
 		menuEdgeSwipeRight = addMenuEdgeSwipe(.right)
 
+		// half-folding changes the reserved fold region without changing bounds
+		if #available(iOS 27.1, *) {
+			view.addInteraction(UIHingeInteraction { [weak self] _, _ in self?.view.setNeedsLayout() })
+		}
+
 		NotificationCenter.default.addObserver(
 			self,
 			selector: #selector(keyboardWillShow),
@@ -339,17 +349,7 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 
 	override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
 		super.viewWillTransition(to: size, with: coordinator)
-
-		let h = size.height
-		let w = size.width
-
-		// Reset zoom on rotation
-		scrollView.zoomScale = 1.0
-
-		self.glkView.updateSize(width: w, height: h)
-		contentView.frame.size = CGSize(width: w, height: h)
-		scrollView.contentSize = CGSize(width: w, height: h)
-		CParsec.setFrame(w, h, UIScreen.main.scale)
+		// sizing happens in viewDidLayoutSubviews, which also catches fold and split view resizes
 
         // Reset accessory view to ensure correct width in new orientation
         clearToolbarModifiers(sendToHost: true)
@@ -362,18 +362,40 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	override func viewDidLayoutSubviews() {
 		super.viewDidLayoutSubviews()
 		// glkView/contentView get sized from possibly-stale bounds in viewDidLoad and have no
-		// autoresizing, so the stream renders in a corner until a rotation re-applies the size.
-		// re-apply once layout settles; skip while zoomed so we dont stomp pan/zoom.
-		guard scrollView != nil, scrollView.zoomScale == 1.0 else { return }
-		let w = view.bounds.width
-		let h = view.bounds.height
-		guard w > 0, h > 0, w != lastLaidOutWidth || h != lastLaidOutHeight else { return }
-		lastLaidOutWidth = w
-		lastLaidOutHeight = h
-		glkView.updateSize(width: w, height: h)
-		contentView.frame.size = CGSize(width: w, height: h)
-		scrollView.contentSize = CGSize(width: w, height: h)
-		CParsec.setFrame(w, h, UIScreen.main.scale)
+		// autoresizing, so the stream renders in a corner until layout re-applies the size.
+		// only acts when the stream frame changes (rotation, fold / unfold, split view, half fold).
+		guard scrollView != nil else { return }
+		let frame = streamFrame()
+		guard frame.width > 0, frame.height > 0, frame != lastLaidOutFrame else { return }
+		// a held finger, glide or zoom offset would keep mapping against the old size
+		if lastLaidOutFrame != .zero { flushAllTouches() }
+		lastLaidOutFrame = frame
+		// keyboard pinning was computed for the old frame; the keyboard re-posts show for the new one
+		pinnedToKeyboard = false
+		keyboardCoversPicture = false
+		scrollView.contentInset = .zero
+		updatePanHandle()
+		scrollView.zoomScale = 1.0
+		scrollView.frame = frame
+		scrollView.contentOffset = .zero
+		glkView.updateSize(width: frame.width, height: frame.height)
+		contentView.frame.size = frame.size
+		scrollView.contentSize = frame.size
+		CParsec.setFrame(frame.width, frame.height, screenScale)
+		positionCursorOverlay()
+	}
+
+	// the whole view, or only the half above the fold when half open like a laptop,
+	// leaving the lower half for the keyboard (and touchpad mode, which works anywhere)
+	func streamFrame() -> CGRect {
+		let b = view.bounds
+		if #available(iOS 27.1, *),
+		   let fold = view.reservedRegions(kind: .division).first(where: { $0.isActive && $0.frame.width > $0.frame.height }),
+		   fold.frame.minY > b.height / 4 {
+			return CGRect(x: 0, y: 0, width: b.width, height: fold.frame.minY)
+		}
+		// ponytail: a vertical fold (book posture) keeps the stream across both halves
+		return b
 	}
 
 	override func viewDidAppear(_ animated: Bool) {
@@ -518,6 +540,8 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	}
 
 	@objc func keyboardWillShow(notification: NSNotification) {
+		// keyboard notifications are app wide; another window's text field is not ours
+		guard isFirstResponder else { return }
 		if let keyboardFrame = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
 			let keyboardFrameInView = view.convert(keyboardFrame, from: nil)
 			let scrollFrameInView = scrollView.convert(scrollView.bounds, to: view)
@@ -559,7 +583,7 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 
             // Automatic scroll up only if mouse is in the bottom half of the screen
             let mouseY = CGFloat(CParsec.mouseInfo.mouseY)
-            let screenMidY = view.bounds.height / 2.1
+            let screenMidY = scrollView.bounds.height / 2.1
 
             if mouseY > screenMidY {
                  let maxOffsetY = max(0, scrollView.contentSize.height - scrollView.bounds.height + height)
@@ -579,7 +603,7 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	}
 
 	func pictureShiftAboveKeyboard(_ keyboard: CGFloat) -> CGFloat? {
-		let w = view.bounds.width, h = view.bounds.height
+		let w = scrollView.bounds.width, h = scrollView.bounds.height
 		guard keyboard > 0, CParsec.hostWidth > 0, CParsec.hostHeight > 0 else { return nil }
 		let picture = min(h, w * CGFloat(CParsec.hostHeight / CParsec.hostWidth))
 		guard picture <= h - keyboard else { return nil }
@@ -635,6 +659,8 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	}
 
 	@objc func keyboardWillHide(notification: NSNotification) {
+		guard keyboardVisible else { return }
+		let appliedHeight = keyboardHeight
 		keyboardHeight = 0.0
         keyboardVisible = false
 		keyboardCoversPicture = false
@@ -653,14 +679,14 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
         // Transform cleanup (just in case)
         view.transform = .identity
 
-        // Automatic scroll down in landscape mode (reverse of show)
-        if view.bounds.width > view.bounds.height {
-             // We subtract, but clamp to 0 (or valid range)
-			let newOffsetY = max(0, scrollView.contentOffset.y - ((notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue.height ?? 0.0))
-             // Or maybe just clamp to valid range without forcing a subtract?
-             // User said "bajar la altura", implying a reverse scroll.
-             scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x, y: newOffsetY), animated: true)
-        }
+        // Automatic scroll down (reverse of show). Not gated on width > height any more:
+        // show scrolls in every orientation, and a near-square foldable screen flips that check.
+		// Undo only the overlap show applied, not the full keyboard height (0 below a half fold).
+		let maxOffsetY = max(0, scrollView.contentSize.height - scrollView.bounds.height)
+		let newOffsetY = min(maxOffsetY, max(0, scrollView.contentOffset.y - appliedHeight))
+		if appliedHeight > 0, newOffsetY != scrollView.contentOffset.y {
+			scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x, y: newOffsetY), animated: true)
+		}
 		onKeyboardVisibilityChanged?(false)
 	}
 
@@ -713,6 +739,9 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 	// gestures never fight. No UIScrollView gesture recognizer is in the loop.
 
 	func parsecTouchesUpdated(_ touches: Set<UITouch>, moved: Bool) {
+		// half fold, direct mode: the lower half is not picture, so a touch there must not click the bottom edge
+		let touches = SettingsHandler.cursorMode == .direct && scrollView.frame != view.bounds
+			? touches.filter { scrollView.frame.contains($0.location(in: view)) } : touches
 		let oldCount = activeTouches.count
 		// Rebuild from the event each time (keeping order) so a cancelled touch can't leave a stale one.
 		var ordered = activeTouches.filter { touches.contains($0) }
@@ -1061,8 +1090,8 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 	}
 
 	private func clampToContent(_ p: CGPoint) -> CGPoint {
-		let w = view.bounds.width
-		let h = view.bounds.height
+		let w = contentView.bounds.width
+		let h = contentView.bounds.height
 		return CGPoint(x: min(max(0, p.x), w), y: min(max(0, p.y), h))
 	}
 
@@ -1152,7 +1181,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 	func keepCursorAboveKeyboard() {
 		guard scrollView.zoomScale <= 1.0, keyboardVisible, scrollView.contentInset.bottom > 0, !pinnedToKeyboard,
 			  SettingsHandler.cursorMode != .direct, let cursor = u, !cursor.isHidden else { return }
-		let visibleBottom = view.bounds.height - keyboardHeight
+		let visibleBottom = scrollView.bounds.height - keyboardHeight
 		let margin = min(50, max(0, (visibleBottom - cursor.frame.height) / 2 - 1))
 		let maxOffsetY = max(0, scrollView.contentSize.height - scrollView.bounds.height + scrollView.contentInset.bottom)
 		var target = scrollView.contentOffset.y
@@ -1173,8 +1202,8 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		guard scrollView.zoomScale > 1.0 else { return }
 		let zoom = scrollView.zoomScale
 		let bottomInset = keyboardVisible ? keyboardHeight : 0.0
-		let visibleWidth = view.bounds.width
-		let visibleHeight = view.bounds.height - bottomInset
+		let visibleWidth = scrollView.bounds.width
+		let visibleHeight = scrollView.bounds.height - bottomInset
 		let cursorX = cursorContentPos.x * zoom
 		let cursorY = cursorContentPos.y * zoom
 		var targetX = cursorX - visibleWidth / 2
@@ -1188,7 +1217,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 
 	private func edgeScrollVelocity(at p: CGPoint) -> CGPoint {
 		guard scrollView.zoomScale > 1.0 else { return .zero }
-		let visibleHeight = view.bounds.height - (keyboardVisible ? keyboardHeight : 0.0)
+		let visibleHeight = scrollView.bounds.height - (keyboardVisible ? keyboardHeight : 0.0)
 		func axis(_ v: CGFloat, _ length: CGFloat) -> CGFloat {
 			if v < edgeScrollMargin {
 				return -min(1, (edgeScrollMargin - v) / edgeScrollMargin) * edgeScrollMaxSpeed
@@ -1198,7 +1227,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 			}
 			return 0
 		}
-		return CGPoint(x: axis(p.x, view.bounds.width), y: axis(p.y, visibleHeight))
+		return CGPoint(x: axis(p.x, scrollView.bounds.width), y: axis(p.y, visibleHeight))
 	}
 
 	private func stepEdgeScroll(_ dt: CGFloat) -> Bool {

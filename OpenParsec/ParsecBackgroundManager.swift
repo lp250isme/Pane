@@ -32,6 +32,16 @@ class ParsecBackgroundManager {
 	var resumedAt: Date?
 	var isPaused = false
 	weak var glkViewController: RenderLoop?
+	// with several windows open, only the one that started the stream drives pause / PiP / disconnect
+	weak var streamScene: UIScene?
+
+	func ownsStream(_ scene: UIScene?) -> Bool {
+		return streamScene == nil || streamScene === scene
+	}
+
+	var keyWindowScene: UIWindowScene? {
+		UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.windows.contains { $0.isKeyWindow } }
+	}
 
 	var onShouldReconnect: ((String) -> Void)?
 	var onShortcutReconnect: (() -> Void)?
