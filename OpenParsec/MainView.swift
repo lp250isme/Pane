@@ -58,6 +58,8 @@ struct MainView: View {
 			Rectangle()
 				.fill(Color("BackgroundGray"))
 				.padding(.vertical, 52)
+				// iPhone Duo landscape puts the status bar in a trailing column; fill under it
+				.edgesIgnoringSafeArea(.horizontal)
 
 			// Main controls
 			VStack {
@@ -111,6 +113,7 @@ struct MainView: View {
 					.frame(height: 52)
 					.shadow(color: Color("Shading"), radius: 4, y: 6)
 					.mask(Rectangle().frame(height: 80).offset(y: 50))
+					.edgesIgnoringSafeArea(.horizontal)
 				)
 				.zIndex(1)
 
@@ -397,6 +400,7 @@ struct MainView: View {
 					.padding(.top, -8)
 					.shadow(color: Color("Shading"), radius: 4, y: -2)
 					.mask(Rectangle().frame(height: 80).offset(y: -50))
+					.edgesIgnoringSafeArea(.horizontal)
 				)
 				.zIndex(1)
 			}
