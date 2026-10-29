@@ -153,7 +153,7 @@ struct ParsecStatusBar: View {
 			}
 			// SDK forgets stream dims on reconnect, re-send them so the frame fills not corners
 			if let vc = parsecViewController {
-				CParsec.setFrame(vc.scrollView.bounds.width, vc.scrollView.bounds.height, vc.screenScale)
+				CParsec.setFrame(vc.scrollView.bounds.width, vc.scrollView.bounds.height, vc.glkView.renderView.contentScaleFactor)
 			}
 		}
 

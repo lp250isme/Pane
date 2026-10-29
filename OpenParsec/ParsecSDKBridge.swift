@@ -58,6 +58,8 @@ class ParsecSDKBridge: ParsecService {
 	public var clientWidth: Float = 1920
 	public var clientHeight: Float = 1080
 	private var hasFrame = false
+	private var viewScale: CGFloat = 1
+	private var fit = PictureFit(identity: CGSize(width: 1920, height: 1080))
 
 	public var netProtocol: Int32 = 1
 	public var mediaContainer: Int32 = 0
@@ -212,8 +214,13 @@ class ParsecSDKBridge: ParsecService {
 
 	func getStatusEx(_ pcs: inout ParsecClientStatus) -> ParsecStatus {
 		let ans = ParsecClientGetStatus(_parsec, &pcs)
-		self.hostHeight = Float(pcs.decoder.0.height)
-		self.hostWidth = Float(pcs.decoder.0.width)
+		let w = Float(pcs.decoder.0.width), h = Float(pcs.decoder.0.height)
+		if w != hostWidth || h != hostHeight {
+			hostWidth = w
+			hostHeight = h
+			// the Metal dimensions follow the host's aspect
+			if hasFrame { applyDimensions() }
+		}
 
 		// the teardown release may not have made it out, this one goes over a socket we know is live
 		if ans == PARSEC_OK && !didReleaseOnConnect {
@@ -225,12 +232,11 @@ class ParsecSDKBridge: ParsecService {
 	}
 
 	func setFrame(_ width: CGFloat, _ height: CGFloat, _ scale: CGFloat) {
-
-		ParsecClientSetDimensions(_parsec, UInt8(DEFAULT_STREAM), UInt32(width), UInt32(height), Float(scale))
-
 		let oldSize = CGSize(width: CGFloat(clientWidth), height: CGFloat(clientHeight))
 		clientWidth = Float(width)
 		clientHeight = Float(height)
+		viewScale = scale
+		applyDimensions()
 		guard hasFrame, oldSize.width > 0, oldSize.height > 0 else {
 			hasFrame = true
 			mouseInfo.mouseX = Int32(width / 2)
@@ -240,6 +246,19 @@ class ParsecSDKBridge: ParsecService {
 		let moved = carryCursor(CGPoint(x: CGFloat(mouseInfo.mouseX), y: CGFloat(mouseInfo.mouseY)), from: oldSize, to: CGSize(width: width, height: height))
 		mouseInfo.mouseX = Int32(moved.x.rounded())
 		mouseInfo.mouseY = Int32(moved.y.rounded())
+	}
+
+	// mouseInfo and every caller stay in view points; only the SDK sees the picture rect
+	private func applyDimensions() {
+		let view = CGSize(width: CGFloat(clientWidth), height: CGFloat(clientHeight))
+		if CParsec.runningRenderer == .metal {
+			fit = PictureFit(view: view, host: CGSize(width: CGFloat(hostWidth), height: CGFloat(hostHeight)), screenScale: viewScale)
+			ParsecClientSetDimensions(_parsec, UInt8(DEFAULT_STREAM), UInt32(fit.dims.width), UInt32(fit.dims.height), 1)
+		} else {
+			// the SDK's GL draw letterboxes by itself
+			fit = PictureFit(identity: view)
+			ParsecClientSetDimensions(_parsec, UInt8(DEFAULT_STREAM), UInt32(view.width), UInt32(view.height), Float(viewScale))
+		}
 	}
 
 	private func carryCursor(_ point: CGPoint, from old: CGSize, to new: CGSize) -> CGPoint {
@@ -377,8 +396,9 @@ class ParsecSDKBridge: ParsecService {
 			mouseInfo.cursorHeight = Int(height)
 
 			if prevHidden && !event.cursor.hidden {
-				mouseInfo.mouseX = Int32(event.cursor.positionX)
-				mouseInfo.mouseY = Int32(event.cursor.positionY)
+				let p = fit.fromSDK(CGPoint(x: CGFloat(event.cursor.positionX), y: CGFloat(event.cursor.positionY)))
+				mouseInfo.mouseX = Int32(p.x.rounded())
+				mouseInfo.mouseY = Int32(p.y.rounded())
 			}
 
 			mouseInfo.cursorHotX = Int(event.cursor.hotX)
@@ -458,10 +478,11 @@ class ParsecSDKBridge: ParsecService {
 	func sendMousePosition(_ x: Int32, _ y: Int32) {
 		mouseInfo.mouseX = ParsecSDKBridge.clamp(x, minValue: 0, maxValue: Int32(self.clientWidth))
 		mouseInfo.mouseY = ParsecSDKBridge.clamp(y, minValue: 0, maxValue: Int32(self.clientHeight))
+		let p = fit.toSDK(CGPoint(x: CGFloat(x), y: CGFloat(y)))
 		var motionMessage = ParsecMessage()
 		motionMessage.type = MESSAGE_MOUSE_MOTION
-		motionMessage.mouseMotion.x = x
-		motionMessage.mouseMotion.y = y
+		motionMessage.mouseMotion.x = Int32(p.x.rounded())
+		motionMessage.mouseMotion.y = Int32(p.y.rounded())
 		ParsecClientSendMessage(_parsec, &motionMessage)
 	}
 
