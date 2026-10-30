@@ -56,6 +56,7 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	// Two-finger scroll-wheel accumulation, kept separate from cursor movement.
 	var lastScrollTranslation: CGPoint = .zero
 	var accumulatedScrollY: Float = 0.0
+	var accumulatedScrollX: Float = 0.0
 	var scrollWheelSpeed: Float { Float(SettingsHandler.scrollSensitivity) * 2.3 }
 
 	// Input-driven cursor + viewport state (manual touch handling via TouchOverlayView).
@@ -94,6 +95,9 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	var scrollView: UIScrollView!
 	var contentView: UIView!
 	var lastLaidOutFrame: CGRect = .zero
+	var trackpad: TrackpadView!
+	var trackpadOwnsCursor = false       // a finger is moving the cursor on the trackpad; the host's late reports must not pull it back
+	private var lastHostSize: CGSize = .zero
 
 	// the window's own screen: a foldable moves the scene between the outer and inner panel
 	var screenScale: CGFloat {
@@ -160,6 +164,12 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 
 	func updateImage() {
 		updateRenderScale()
+		// a new host size (display switch) moves the line between picture and trackpad
+		let host = CGSize(width: CGFloat(CParsec.hostWidth), height: CGFloat(CParsec.hostHeight))
+		if host != lastHostSize {
+			lastHostSize = host
+			view.setNeedsLayout()
+		}
         // Optimization: Snap current valus
         let currentMouseX = CParsec.mouseInfo.mouseX
         let currentMouseY = CParsec.mouseInfo.mouseY
@@ -188,7 +198,7 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 			// While dragging, the touch handler owns the cursor position and viewport (smooth,
 			// input-driven). When idle, follow the host's reported cursor so host- or keyboard-
 			// driven moves are reflected and any prediction drift is corrected.
-			if !isDragging && !clickHoldActive && !cursorMomentumActive {
+			if !isDragging && !clickHoldActive && !cursorMomentumActive && !trackpadOwnsCursor {
 				let fingerSet = SettingsHandler.cursorMode == .direct
 					&& abs(cursorContentPos.x - CGFloat(currentMouseX)) < 1
 					&& abs(cursorContentPos.y - CGFloat(currentMouseY)) < 1
@@ -262,6 +272,12 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 		touchOverlay.inputDelegate = self
 		view.addSubview(touchOverlay)
 
+		// below the picture in portrait or a half fold; above the overlay so it gets its own touches
+		trackpad = TrackpadView(frame: .zero)
+		trackpad.delegate = self
+		trackpad.isHidden = true
+		view.addSubview(trackpad)
+
 		// Cursor is a screen-space overlay ON TOP of everything (not inside the scroll view), so the
 		// zoom transform never scales it - keeping it crisp and a constant on-screen size.
 		u = UIImageView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
@@ -275,6 +291,8 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 
 		view.isMultipleTouchEnabled = true
 		view.isUserInteractionEnabled = true
+		// the stream sits on black in either theme; letterbox bars and the trackpad below show through
+		view.backgroundColor = .black
 
 		// All gestures (cursor, pinch-zoom, two-finger scroll) are handled in the
 		// ParsecTouchInputDelegate methods below, driven by touchOverlay's raw touches.
@@ -372,7 +390,15 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 		// autoresizing, so the stream renders in a corner until layout re-applies the size.
 		// only acts when the stream frame changes (rotation, fold / unfold, split view, half fold).
 		guard scrollView != nil else { return }
-		let frame = streamFrame()
+		let layout = streamLayout()
+		let frame = layout.picture
+		if let pad = layout.trackpad {
+			trackpad.frame = pad
+			trackpad.isHidden = false
+		} else if !trackpad.isHidden {
+			trackpad.reset()
+			trackpad.isHidden = true
+		}
 		guard frame.width > 0, frame.height > 0, frame != lastLaidOutFrame else { return }
 		// a held finger, glide or zoom offset would keep mapping against the old size
 		if lastLaidOutFrame != .zero { flushAllTouches() }
@@ -394,17 +420,29 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 
 	// the whole view, or only the half above the fold when half open like a laptop,
 	// leaving the lower half for the keyboard (and touchpad mode, which works anywhere)
-	func streamFrame() -> CGRect {
+	func streamFrame() -> CGRect { streamLayout().picture }
+
+	// where the picture goes, and the trackpad below it when there is one: the half fold's lower half,
+	// or the space a portrait screen leaves under a top-aligned picture
+	func streamLayout() -> (picture: CGRect, trackpad: CGRect?) {
 		let b = view.bounds
+		let padBottom = b.maxY - view.safeAreaInsets.bottom
 		#if compiler(>=6.4)
 		if #available(iOS 27.1, *),
 		   let fold = view.reservedRegions(kind: .division).first(where: { $0.isActive && $0.frame.width > $0.frame.height }),
 		   fold.frame.minY > b.height / 4 {
-			return CGRect(x: 0, y: 0, width: b.width, height: fold.frame.minY)
+			let picture = CGRect(x: 0, y: 0, width: b.width, height: fold.frame.minY)
+			let pad = CGRect(x: 0, y: fold.frame.maxY, width: b.width, height: padBottom - fold.frame.maxY)
+			return (picture, SettingsHandler.trackpadBelowPicture && pad.height > 60 ? pad : nil)
 		}
 		#endif
 		// ponytail: a vertical fold (book posture) keeps the stream across both halves
-		return b
+		let host = CGSize(width: CGFloat(CParsec.hostWidth), height: CGFloat(CParsec.hostHeight))
+		if SettingsHandler.trackpadBelowPicture,
+		   let picture = pictureAboveTrackpad(in: b, topInset: view.safeAreaInsets.top, host: host, minTrackpad: 120) {
+			return (picture, CGRect(x: 0, y: picture.maxY, width: b.width, height: padBottom - picture.maxY))
+		}
+		return (b, nil)
 	}
 
 	override func viewDidAppear(_ animated: Bool) {
@@ -828,7 +866,10 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		}
 	}
 
-	@objc private func appWillResignActive() { flushAllTouches() }
+	@objc private func appWillResignActive() {
+		flushAllTouches()
+		trackpad?.reset()
+	}
 
 	// Drop all touch state and release any held button so nothing sticks when backgrounded.
 	private func flushAllTouches() {
@@ -985,25 +1026,10 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		switch twoFingerMode {
 		case .zoom:
 			if lastPinchDistance > 0 {
-				applyZoom(to: scrollView.zoomScale * (d.distance / lastPinchDistance), anchorInView: d.midpoint)
+				applyZoom(to: scrollView.zoomScale * (d.distance / lastPinchDistance), anchorInView: CGPoint(x: d.midpoint.x - scrollView.frame.minX, y: d.midpoint.y - scrollView.frame.minY))
 			}
 		case .scroll:
-			let deltaY = Float(d.midpoint.y - lastTwoFingerMidpoint.y)
-			let direction: Float = SettingsHandler.reverseScrollDirection ? -1.0 : 1.0
-			let contribution = deltaY * scrollWheelSpeed * direction
-			accumulatedScrollY += contribution
-			let intScrollY = Int32(accumulatedScrollY)
-			if intScrollY != 0 {
-				CParsec.sendWheelMsg(x: 0, y: intScrollY)
-				accumulatedScrollY -= Float(intScrollY)
-			}
-			// Track scroll velocity for a little post-flick momentum.
-			let snow = CACurrentMediaTime()
-			let sdt = Float(snow - lastScrollMoveTime)
-			if sdt > 0.0005 && sdt < 0.1 {
-				scrollVelocity = scrollVelocity * 0.4 + (contribution / sdt) * 0.6
-			}
-			lastScrollMoveTime = snow
+			scrollWheel(byFingers: CGPoint(x: 0, y: d.midpoint.y - lastTwoFingerMidpoint.y))
 		case .undecided:
 			break
 		}
@@ -1011,8 +1037,34 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		lastTwoFingerMidpoint = d.midpoint
 	}
 
-	private func startCursorMomentum() {
-		guard SettingsHandler.cursorMode == .touchpad, !CParsec.mouseInfo.mousePositionRelative else { return }
+	// two fingers moving by this much (screen points) turn the host's wheel, with the reverse setting
+	func scrollWheel(byFingers delta: CGPoint) {
+		let direction: Float = SettingsHandler.reverseScrollDirection ? -1.0 : 1.0
+		let contribution = Float(delta.y) * scrollWheelSpeed * direction
+		accumulatedScrollY += contribution
+		let intScrollY = Int32(accumulatedScrollY)
+		if intScrollY != 0 {
+			CParsec.sendWheelMsg(x: 0, y: intScrollY)
+			accumulatedScrollY -= Float(intScrollY)
+		}
+		// sideways: fingers moving right bring in what's on the left
+		accumulatedScrollX -= Float(delta.x) * scrollWheelSpeed * direction
+		let intScrollX = Int32(accumulatedScrollX)
+		if intScrollX != 0 {
+			CParsec.sendWheelMsg(x: intScrollX, y: 0)
+			accumulatedScrollX -= Float(intScrollX)
+		}
+		// Track scroll velocity for a little post-flick momentum.
+		let snow = CACurrentMediaTime()
+		let sdt = Float(snow - lastScrollMoveTime)
+		if sdt > 0.0005 && sdt < 0.1 {
+			scrollVelocity = scrollVelocity * 0.4 + (contribution / sdt) * 0.6
+		}
+		lastScrollMoveTime = snow
+	}
+
+	private func startCursorMomentum(fromTrackpad: Bool = false) {
+		guard SettingsHandler.cursorMode == .touchpad || fromTrackpad, !CParsec.mouseInfo.mousePositionRelative else { return }
 		guard CACurrentMediaTime() - lastCursorMoveTime < 0.06 else { return }   // finger was still moving at release
 		guard hypot(cursorVelocity.x, cursorVelocity.y) > flingMinSpeed else { return }
 		// Less glide when zoomed out: at 1x the cursor crosses the screen instead of panning the view.
@@ -1147,8 +1199,9 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		guard let u = u else { return }
 		let zoom = scrollView.zoomScale
 		let off = scrollView.contentOffset
-		let screenX = cursorContentPos.x * zoom - off.x
-		let screenY = cursorContentPos.y * zoom - off.y
+		// u sits in the view, the picture may not start at its top (portrait with the trackpad below)
+		let screenX = cursorContentPos.x * zoom - off.x + scrollView.frame.minX
+		let screenY = cursorContentPos.y * zoom - off.y + scrollView.frame.minY
 		let cs = CGFloat(SettingsHandler.cursorScale)
 		let hotX = CGFloat(CParsec.mouseInfo.cursorHotX) * cs
 		let hotY = CGFloat(CParsec.mouseInfo.cursorHotY) * cs
@@ -1157,7 +1210,13 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		u.frame = CGRect(x: screenX - hotX, y: screenY - hotY, width: w, height: h)
 	}
 
+	// the trackpad handles its own taps and holds
+	private func onTrackpad(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+		!trackpad.isHidden && trackpad.frame.contains(gestureRecognizer.location(in: view))
+	}
+
 	@objc func handleSingleFingerTap(_ gestureRecognizer: UITapGestureRecognizer) {
+		if onTrackpad(gestureRecognizer) { return }
 		// Only click if the finger stayed put; a moved finger was a cursor nudge, not a tap.
 		if cursorDidMoveThisTouch { return }
 		if SettingsHandler.cursorMode == .direct { return }
@@ -1167,6 +1226,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 	}
 
 	@objc func handleTwoFingerTap(_ gestureRecognizer: UITapGestureRecognizer) {
+		if onTrackpad(gestureRecognizer) { return }
 		// A two-finger TAP is a right click; if the fingers moved (pinch/scroll) it wasn't a tap.
 		if twoFingerDidMove { return }
 		// dont leak a right-click to the host while backgrounding (app switch) or after a disconnect
@@ -1188,6 +1248,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 	}
 
 	@objc func handleThreeFinderTap(_ gestureRecognizer: UITapGestureRecognizer) {
+		if onTrackpad(gestureRecognizer) { return }
 		setKeyboardVisible(!keyboardVisible)
 	}
 
@@ -1195,6 +1256,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		if SettingsHandler.cursorMode != .touchpad {
 			return
 		}
+		if gestureRecognizer.state == .began && onTrackpad(gestureRecognizer) { return }
 		switch gestureRecognizer.state {
 		case .began:
 			// Click-and-hold (file drag): hold the left button; the overlay keeps moving the cursor.
@@ -1226,15 +1288,17 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 
 	func keepCursorAboveKeyboard() {
 		guard scrollView.zoomScale <= 1.0, keyboardVisible, scrollView.contentInset.bottom > 0, !pinnedToKeyboard,
-			  SettingsHandler.cursorMode != .direct, let cursor = u, !cursor.isHidden else { return }
+			  SettingsHandler.cursorMode != .direct, let u = u, !u.isHidden else { return }
+		// the cursor frame is in view coordinates, the rest of this in the picture's
+		let cursorFrame = u.frame.offsetBy(dx: -scrollView.frame.minX, dy: -scrollView.frame.minY)
 		let visibleBottom = scrollView.bounds.height - keyboardHeight
-		let margin = min(50, max(0, (visibleBottom - cursor.frame.height) / 2 - 1))
+		let margin = min(50, max(0, (visibleBottom - cursorFrame.height) / 2 - 1))
 		let maxOffsetY = max(0, scrollView.contentSize.height - scrollView.bounds.height + scrollView.contentInset.bottom)
 		var target = scrollView.contentOffset.y
-		if cursor.frame.maxY > visibleBottom - margin {
-			target += cursor.frame.maxY - (visibleBottom - margin)
-		} else if cursor.frame.minY < margin {
-			target -= margin - cursor.frame.minY
+		if cursorFrame.maxY > visibleBottom - margin {
+			target += cursorFrame.maxY - (visibleBottom - margin)
+		} else if cursorFrame.minY < margin {
+			target -= margin - cursorFrame.minY
 		}
 		target = min(max(0, target), maxOffsetY)
 		guard target != scrollView.contentOffset.y else { return }
@@ -1261,8 +1325,10 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		scrollView.setContentOffset(CGPoint(x: targetX, y: targetY), animated: false)
 	}
 
-	private func edgeScrollVelocity(at p: CGPoint) -> CGPoint {
+	private func edgeScrollVelocity(at point: CGPoint) -> CGPoint {
 		guard scrollView.zoomScale > 1.0 else { return .zero }
+		// a view point, measured against the picture's edges
+		let p = CGPoint(x: point.x - scrollView.frame.minX, y: point.y - scrollView.frame.minY)
 		let visibleHeight = scrollView.bounds.height - (keyboardVisible ? keyboardHeight : 0.0)
 		func axis(_ v: CGFloat, _ length: CGFloat) -> CGFloat {
 			if v < edgeScrollMargin {
@@ -1399,12 +1465,15 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 		return true
 	}
 
+	// a modifier latched on the key row applies to the next key only, like sticky keys on a Mac
 	func insertText(_ text: String) {
 		CParsec.sendVirtualKeyboardInput(text: text)
+		clearToolbarModifiers(sendToHost: true)
 	}
 
 	func deleteBackward() {
 		CParsec.sendVirtualKeyboardInput(text: "BACKSPACE")
+		clearToolbarModifiers(sendToHost: true)
 	}
 
     // copied from moonlight https://github.com/moonlight-stream/moonlight-ios/blob/022352c1667788d8626b659d984a290aa5c25e17/Limelight/Input/StreamView.m#L393
@@ -1459,7 +1528,8 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 		let leftButton = createKeyboardButton(displayText: "←", keyText: "LEFT", isToggleable: false)
 		let rightButton = createKeyboardButton(displayText: "→", keyText: "RIGHT", isToggleable: false)
 
-		let buttons = [tabBarButton, shiftBarButton, controlBarButton, altBarButton, windowsBarButton, escapeBarButton, f1Button, f2Button, f3Button, f4Button, f5Button, f6Button, f7Button, f8Button, f9Button, f10Button, f11Button, f12Button, deleteBarButton, upButton, downButton, leftButton, rightButton]
+		// Mac order: esc and the modifiers first, then the function row, the arrows and delete
+		let buttons = [escapeBarButton, controlBarButton, altBarButton, windowsBarButton, shiftBarButton, tabBarButton, f1Button, f2Button, f3Button, f4Button, f5Button, f6Button, f7Button, f8Button, f9Button, f10Button, f11Button, f12Button, leftButton, downButton, upButton, rightButton, deleteBarButton]
 
 		for button in buttons {
 			buttonStackView.addArrangedSubview(button)
@@ -1576,6 +1646,7 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 			}
 		} else {
 			CParsec.sendVirtualKeyboardInput(text: keyText)
+			clearToolbarModifiers(sendToHost: true)
 		}
 
 	}
@@ -1629,6 +1700,8 @@ class TouchOverlayView: UIView {
 	private func forward(_ event: UIEvent?, moved: Bool) {
 		let active = (event?.allTouches ?? []).filter { touch in
 			guard touch.phase != .ended && touch.phase != .cancelled else { return false }
+			// the trackpad below the picture runs its own gestures
+			if touch.view is TrackpadView { return false }
 			if #available(iOS 13.4, *), touch.type == .indirectPointer { return false }
 			return true
 		}
@@ -1655,5 +1728,88 @@ final class AccessoryContainerView: UIView {
 
 	override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
 		subviews.contains { $0.frame.contains(point) }
+	}
+}
+
+// MARK: - Trackpad below the picture
+
+extension ParsecViewController: TrackpadDelegate {
+	func trackpadMove(by delta: CGPoint) {
+		guard ParsecBackgroundManager.shared.hasActiveConnection else { return }
+		let zoom = scrollView.zoomScale
+		let s = CGFloat(mouseSensitivity) / zoom
+		if CParsec.mouseInfo.mousePositionRelative {
+			// the host captured the pointer (a game): true relative motion
+			CParsec.sendMouseDelta(Int32(delta.x * CGFloat(mouseSensitivity)), Int32(delta.y * CGFloat(mouseSensitivity)))
+			return
+		}
+		let dcx = delta.x * s, dcy = delta.y * s
+		cursorContentPos = clampToContent(CGPoint(x: cursorContentPos.x + dcx, y: cursorContentPos.y + dcy))
+		let now = CACurrentMediaTime()
+		let dt = CGFloat(now - lastCursorMoveTime)
+		if dt > 0.0005 && dt < 0.1 {
+			cursorVelocity = CGPoint(x: cursorVelocity.x * 0.4 + (dcx / dt) * 0.6, y: cursorVelocity.y * 0.4 + (dcy / dt) * 0.6)
+		}
+		lastCursorMoveTime = now
+		CParsec.sendMousePosition(Int32(cursorContentPos.x), Int32(cursorContentPos.y))
+		centerViewportOnCursorPos()
+		positionCursorOverlay()
+	}
+
+	func trackpadTouchBegan() {
+		// a new touch stops a glide, so a tap lands where the cursor is now
+		stopMomentum()
+	}
+
+	func trackpadCursorActive(_ active: Bool) {
+		trackpadOwnsCursor = active
+	}
+
+	func trackpadMoveEnded() {
+		startCursorMomentum(fromTrackpad: true)
+	}
+
+	func trackpadButton(_ button: Int32, pressed: Bool) {
+		// a release always goes out so nothing sticks; a press only while streaming
+		guard !pressed || ParsecBackgroundManager.shared.hasActiveConnection else { return }
+		CParsec.sendMouseClickMessage(ParsecMouseButton(rawValue: UInt32(button)), pressed)
+	}
+
+	func trackpadTap(_ tap: TrackpadTap) {
+		switch tap {
+		case .leftClick, .rightClick:
+			guard UIApplication.shared.applicationState == .active, ParsecBackgroundManager.shared.hasActiveConnection else { return }
+			let button = ParsecMouseButton(rawValue: tap == .leftClick ? 1 : 3)
+			CParsec.sendMouseClickMessage(button, true)
+			CParsec.sendMouseClickMessage(button, false)
+		case .toggleKeyboard:
+			setKeyboardVisible(!keyboardVisible)
+		}
+	}
+
+	func trackpadScroll(by delta: CGPoint) {
+		guard ParsecBackgroundManager.shared.hasActiveConnection else { return }
+		stopMomentum()
+		scrollWheel(byFingers: delta)
+	}
+
+	func trackpadScrollEnded() {
+		startScrollMomentum()
+	}
+
+	// pinching the pad zooms the picture above, around the cursor
+	func trackpadZoom(by scale: CGFloat) {
+		guard zoomEnabled else { return }
+		let off = scrollView.contentOffset
+		let anchor = CGPoint(x: cursorContentPos.x * scrollView.zoomScale - off.x, y: cursorContentPos.y * scrollView.zoomScale - off.y)
+		applyZoom(to: scrollView.zoomScale * scale, anchorInView: anchor)
+	}
+
+	func trackpadGesture(_ gesture: TrackpadGesture) {
+		guard ParsecBackgroundManager.shared.hasActiveConnection else { return }
+		let keys = trackpadKeys(gesture, hostOS: DataManager.model.hostOS)
+		appNote("[trackpad] \(gesture) -> \(keys)")
+		for key in keys { CParsec.sendKeyboardMessage(keyCode: key, pressed: true) }
+		for key in keys.reversed() { CParsec.sendKeyboardMessage(keyCode: key, pressed: false) }
 	}
 }

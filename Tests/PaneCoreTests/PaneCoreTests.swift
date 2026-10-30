@@ -132,3 +132,53 @@ import Testing
 		#expect(!press && !release)
 	}
 }
+
+// MARK: - Trackpad below the picture
+
+@Suite struct TrackpadTests {
+	@Test func 點擊依手指數() {
+		#expect(trackpadTap(fingers: 1) == .leftClick)
+		#expect(trackpadTap(fingers: 2) == .rightClick)
+		#expect(trackpadTap(fingers: 3) == .toggleKeyboard)
+		#expect(trackpadTap(fingers: 4) == nil)
+	}
+
+	@Test func 滑動要超過門檻才算且取主要方向() {
+		#expect(trackpadSwipe(CGVector(dx: 30, dy: 5), threshold: 60) == nil)
+		#expect(trackpadSwipe(CGVector(dx: -80, dy: 20), threshold: 60) == .swipeLeft)
+		#expect(trackpadSwipe(CGVector(dx: 10, dy: -90), threshold: 60) == .swipeUp)
+		#expect(trackpadSwipe(CGVector(dx: 70, dy: 75), threshold: 60) == .swipeDown)
+	}
+
+	@Test func 四指開合() {
+		#expect(trackpadPinch(spreadRatio: 0.5) == .pinch)
+		#expect(trackpadPinch(spreadRatio: 1.8) == .spread)
+		#expect(trackpadPinch(spreadRatio: 1.0) == nil)
+	}
+
+	@Test func Mac主機對到Mac的快捷鍵() {
+		#expect(trackpadKeys(.swipeUp, hostOS: macHostOS) == [HIDKey.ctrl, HIDKey.up])
+		#expect(trackpadKeys(.swipeDown, hostOS: macHostOS) == [HIDKey.ctrl, HIDKey.down])
+		// swiping left brings in the Space on the right, like a Mac trackpad
+		#expect(trackpadKeys(.swipeLeft, hostOS: macHostOS) == [HIDKey.ctrl, HIDKey.right])
+		#expect(trackpadKeys(.spread, hostOS: macHostOS) == [HIDKey.f11])
+	}
+
+	@Test func 其他主機對到Windows的快捷鍵() {
+		#expect(trackpadKeys(.swipeUp, hostOS: 0) == [HIDKey.gui, HIDKey.tab])
+		#expect(trackpadKeys(.swipeDown, hostOS: 0) == [HIDKey.gui, HIDKey.d])
+		#expect(trackpadKeys(.swipeRight, hostOS: nil) == [HIDKey.ctrl, HIDKey.gui, HIDKey.left])
+	}
+
+	@Test func 直向時畫面貼頂端下方留給觸控板() {
+		let r = pictureAboveTrackpad(in: CGRect(x: 0, y: 0, width: 400, height: 860), topInset: 50, host: CGSize(width: 1920, height: 1080), minTrackpad: 120)
+		#expect(r == CGRect(x: 0, y: 50, width: 400, height: 225))
+	}
+
+	@Test func 橫向或空間不夠時不切() {
+		#expect(pictureAboveTrackpad(in: CGRect(x: 0, y: 0, width: 860, height: 400), topInset: 0, host: CGSize(width: 1920, height: 1080), minTrackpad: 120) == nil)
+		// a portrait host fills a portrait screen: nothing left for a trackpad
+		#expect(pictureAboveTrackpad(in: CGRect(x: 0, y: 0, width: 400, height: 860), topInset: 50, host: CGSize(width: 858, height: 2048), minTrackpad: 120) == nil)
+		#expect(pictureAboveTrackpad(in: CGRect(x: 0, y: 0, width: 400, height: 860), topInset: 0, host: .zero, minTrackpad: 120) == nil)
+	}
+}

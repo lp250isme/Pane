@@ -31,6 +31,7 @@ struct SettingsForm: View {
 				ValueSliderRow("Scroll Speed", value: $settings.scrollSensitivity, in: 0.5...5, step: 0.5)
 				Toggle("Reverse Scrolling", isOn: $settings.reverseScrollDirection)
 				Toggle("Pinch to Zoom", isOn: $settings.zoomEnabled)
+				Toggle("Trackpad Below the Picture", isOn: $settings.trackpadBelowPicture)
 			}
 
 			Section(header: Text("Keyboard")) {
@@ -88,6 +89,8 @@ struct SettingsForm: View {
 			}
 		}
 		.navigationTitle("Settings")
+		// the black-and-white accent makes a dark-mode switch white on white
+		.toggleStyle(SwitchToggleStyle(tint: .green))
 		// SettingsView used to be the only place applying this; keep it here so the
 		// iOS 17+ detail page gets the same scheme.
 		.preferredColorScheme(appScheme)

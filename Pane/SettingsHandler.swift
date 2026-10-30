@@ -30,6 +30,7 @@ final class SettingsStore: ObservableObject {
 			"errorPrompts": false,
 			"autoConnectOnLaunch": false,
 			"savedZoomEnabled": false,
+			"trackpadBelowPicture": true,
 			"savedConstantFps": false
 		])
 		// values saved back when saving was off would now always apply
@@ -155,6 +156,11 @@ final class SettingsStore: ObservableObject {
 		set { store(newValue, "autoConnectOnLaunch") }
 	}
 
+	var trackpadBelowPicture: Bool {
+		get { defaults.bool(forKey: "trackpadBelowPicture") }
+		set { store(newValue, "trackpadBelowPicture") }
+	}
+
 	var zoomEnabled: Bool {
 		get { defaults.bool(forKey: "savedZoomEnabled") }
 		set { store(newValue, "savedZoomEnabled") }
@@ -190,5 +196,6 @@ struct SettingsHandler {
 	static var errorPrompts: Bool { get { SettingsStore.shared.errorPrompts } set { SettingsStore.shared.errorPrompts = newValue } }
 	static var autoConnectOnLaunch: Bool { get { SettingsStore.shared.autoConnectOnLaunch } set { SettingsStore.shared.autoConnectOnLaunch = newValue } }
 	static var zoomEnabled: Bool { get { SettingsStore.shared.zoomEnabled } set { SettingsStore.shared.zoomEnabled = newValue } }
+	static var trackpadBelowPicture: Bool { SettingsStore.shared.trackpadBelowPicture }
 	static var constantFps: Bool { get { SettingsStore.shared.constantFps } set { SettingsStore.shared.constantFps = newValue } }
 }

@@ -325,7 +325,7 @@ struct MainView: View {
 								Spacer()
 								Button(action: reconnectLastHost) {
 									Text("Reconnect")
-										.foregroundColor(.white)
+										.foregroundColor(Color(.systemBackground))
 										.padding(.horizontal, 12)
 										.padding(.vertical, 6)
 										.background(Color("AccentColor"))
@@ -388,7 +388,7 @@ struct MainView: View {
 											.fill(Color("AccentColor"))
 											.cornerRadius(8)
 										Text("Connect")
-											.foregroundColor(.white)
+											.foregroundColor(Color(.systemBackground))
 											.padding(8)
 									}
 									.frame(maxWidth: 100)
@@ -573,6 +573,7 @@ struct MainView: View {
 						Spacer()
 						Button("Reconnect", action: reconnectLastHost)
 							.buttonStyle(.borderedProminent)
+							.onAccentLabel()
 							.buttonBorderShape(.capsule)
 							.controlSize(.small)
 						Button(action: clearLastHost) {

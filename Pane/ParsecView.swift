@@ -457,9 +457,10 @@ struct ParsecView: View {
 
 			// prominent glass marks the keyboard as up
 			if showKeyboard {
-				button.buttonStyle(.glassProminent)
+				button.buttonStyle(.glassProminent).onAccentLabel()
 			} else {
-				button.buttonStyle(.glass)
+				// over the stream, which is mostly dark: the black-and-white accent would tint it black in light mode
+				button.buttonStyle(.glass).foregroundStyle(.white)
 			}
 		} else {
 			Button(action: toggleKeyboard) {
@@ -490,6 +491,7 @@ struct ParsecView: View {
 			}
 		}
 		.listStyle(.insetGrouped)
+		.toggleStyle(SwitchToggleStyle(tint: .green))
 		.popoverListBackground()
 		.fitsContentHeight($menuContentHeight)
 		// a fresh list and height reading per page, so it starts at the top and the popover fits that page

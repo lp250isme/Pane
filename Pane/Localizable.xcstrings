@@ -1463,6 +1463,26 @@
         }
       }
     },
+    "Trackpad": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "觸控板"
+          }
+        }
+      }
+    },
+    "Trackpad Below the Picture": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "畫面下方當觸控板"
+          }
+        }
+      }
+    },
     "Two-Factor Authentication": {
       "localizations": {
         "zh-Hant": {

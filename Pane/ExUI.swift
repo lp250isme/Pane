@@ -58,9 +58,15 @@ extension View {
 	@ViewBuilder
 	func prominentActionStyle() -> some View {
 		if #available(iOS 26, *) {
-			self.buttonStyle(.glassProminent)
+			self.buttonStyle(.glassProminent).onAccentLabel()
 		} else {
-			self.buttonStyle(.borderedProminent)
+			self.buttonStyle(.borderedProminent).onAccentLabel()
 		}
+	}
+
+	/// The accent is black in light mode and white in dark, so a label on it takes the opposite
+	/// (prominent styles default to white, which vanishes on the dark-mode accent)
+	func onAccentLabel() -> some View {
+		self.foregroundStyle(Color(.systemBackground))
 	}
 }

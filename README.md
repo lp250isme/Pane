@@ -22,7 +22,7 @@ Pane is an open-source iOS / iPadOS client for [Parsec](https://parsec.app) by k
 **Native iOS interface**
 - iOS 17 and later: a sidebar for Hosts, Friends and Settings, shown only while you are not streaming.
 - Settings is a native grouped form. Login, two-factor prompts and connection prompts are native too.
-- Light and dark themes follow the system setting. The app icon has its own light, dark and tinted versions.
+- A black-and-white look in light and dark themes, following the system setting. The app icon has its own light, dark and tinted versions.
 - English and Traditional Chinese, following the device language. You can also pick one per app in iOS Settings.
 
 **Stream menu**
@@ -34,6 +34,26 @@ Tap the floating button (Liquid Glass on iOS 26) to open a native popover with:
 - Hide Buttons and Disconnect.
 
 You can also open the menu by swiping in from the screen edge (set in Settings > Menu Edge Swipe).
+
+**Trackpad below the picture**
+In portrait, and on the lower half of a half-folded iPhone Duo, the picture sits at the top and the space below becomes a large trackpad that works like a Mac's:
+
+| Gesture | Does |
+|---|---|
+| One finger | Move the pointer; a flick keeps gliding |
+| Tap | Left click |
+| Press and hold, then move | Drag (holds the left button) |
+| Two finger tap | Right click |
+| Two finger move | Scroll, up and down or sideways |
+| Two finger pinch | Zoom the picture above |
+| Three finger tap | Show or hide the keyboard |
+| Three or four finger swipe up | Mission Control (Windows: Task View) |
+| Three or four finger swipe down | App Exposé (Windows: show desktop) |
+| Three or four finger swipe left / right | Move between Spaces (Windows: virtual desktops) |
+| Four finger spread | Show Desktop |
+| Four finger pinch | Spotlight (Windows: Start) |
+
+With the keyboard up, the iPhone keyboard takes the lower part and a row of Mac keys sits above it: Esc, ⌃, ⌥, ⌘, ⇧, Tab, F1 to F12, the arrows and Delete. A modifier stays down until the next key. Turn the trackpad off in Settings > Trackpad Below the Picture.
 
 **Mac hosts**
 A Mac host streams each monitor at its own resolution, so Pane hides the resolution choice and always asks for the host's own size. Switching to a second monitor on a Mac host is still being worked on: on some setups the host goes back to the main monitor a few seconds later.
@@ -68,7 +88,7 @@ The bundle id is the same as OpenParsec's, so Pane installs over an existing Ope
 | Pinch | Zoom the picture (when Pinch to Zoom is on) | Same |
 | Three finger tap | Show or hide the keyboard | Same |
 
-- The on-screen keyboard has an extra row with Esc, Tab, Delete, the modifier keys, F1 to F12 and the arrow keys. When the keyboard covers part of the picture, drag the handle to move the picture into view.
+- The on-screen keyboard has an extra row of Mac keys: Esc, ⌃, ⌥, ⌘, ⇧, Tab, F1 to F12, the arrows and Delete. When the keyboard covers part of the picture, drag the handle to move the picture into view.
 - **Mouse and keyboard**: USB mice and keyboards work. Option can be mapped to Command (Settings > Option Key as Command).
 - **Game controllers**: press any trigger while streaming and Parsec picks up the controller. Set up the host first, for example by installing its virtual USB driver.
 - **Picture in Picture** keeps the stream in a floating window when you leave the app (Settings > Picture in Picture).
@@ -78,7 +98,7 @@ The bundle id is the same as OpenParsec's, so Pane installs over an existing Ope
 
 | Section | What you can change |
 |---|---|
-| Touch & Mouse | Touch mode, which finger right-clicks, pointer speed, cursor size, scroll speed, reverse scrolling, pinch to zoom |
+| Touch & Mouse | Touch mode, which finger right-clicks, pointer speed, cursor size, scroll speed, reverse scrolling, pinch to zoom, trackpad below the picture |
 | Keyboard | Keyboard button, Option as Command |
 | Video | Renderer (Metal or OpenGL), resolution (non-Mac hosts), bitrate, frame rate, constant frame rate, codec (H.264 or H.265) |
 | During a Stream | Stream stats, menu button, menu edge swipe, hide the status bar, Picture in Picture, start muted |
@@ -114,7 +134,8 @@ Modified from hugeBlack/OpenParsec starting October 2026 (GPLv3 section 5a notic
 - A new stream menu with bitrate, display switching and resolution
 - Mac hosts get no resolution request and no resolution choice
 - Fixes for the stretched Metal picture, keyboard hiding, a cursor data race, a clean disconnect when the app is killed, and nightly CI metadata
-- Renamed to Pane with a new icon and accent color
+- A trackpad below the picture in portrait and half fold, with Mac gestures
+- Renamed to Pane with a new icon and a black-and-white look
 
 ### Credit and license
 
@@ -138,7 +159,7 @@ Pane 是 kv 開發的開源 iOS / iPadOS [Parsec](https://parsec.app) 用戶端�
 **原生 iOS 介面**
 - iOS 17 以上用側邊欄切換主機、好友和設定，只在沒有串流時出現。
 - 設定是原生分組表單，登入、兩步驟驗證和連線提示也都是原生樣式。
-- 亮色和暗色主題跟著系統切換，App icon 也有亮色、暗色和 tinted 三種版本。
+- 黑白配色，亮色和暗色主題跟著系統切換，App icon 也有亮色、暗色和 tinted 三種版本。
 - 介面有英文和繁體中文，跟著裝置語言切換，也可以在 iOS 設定裡個別指定這個 App 的語言。
 
 **串流選單**
@@ -150,6 +171,26 @@ Pane 是 kv 開發的開源 iOS / iPadOS [Parsec](https://parsec.app) 用戶端�
 - 隱藏按鈕和中斷連線。
 
 也可以從螢幕邊緣滑入打開選單（設定 > 從邊緣滑出選單）。
+
+**畫面下方的觸控板**
+直向時，以及 iPhone Duo 半摺時的下半部，畫面會放在上方，下面整塊變成跟 Mac 一樣的大觸控板：
+
+| 手勢 | 功能 |
+|---|---|
+| 單指 | 移動游標，快速一撥會繼續滑行 |
+| 點一下 | 左鍵 |
+| 按住後移動 | 拖曳（按住左鍵） |
+| 雙指點一下 | 右鍵 |
+| 雙指移動 | 捲動，上下或左右 |
+| 雙指開合 | 縮放上方的畫面 |
+| 三指點一下 | 叫出或收起鍵盤 |
+| 三或四指上滑 | 指揮中心（Windows：工作檢視） |
+| 三或四指下滑 | App Exposé（Windows：顯示桌面） |
+| 三或四指左右滑 | 切換桌面空間（Windows：虛擬桌面） |
+| 四指張開 | 顯示桌面 |
+| 四指捏合 | Spotlight（Windows：開始功能表） |
+
+叫出鍵盤時，下方換成 iPhone 鍵盤，上面多一排 Mac 按鍵：Esc、⌃、⌥、⌘、⇧、Tab、F1 到 F12、方向鍵和 Delete。修飾鍵會按住，直到按下一個鍵。可以在「設定 > 畫面下方當觸控板」關閉。
 
 **Mac 主機**
 Mac 主機會以每個螢幕本身的解析度串流，所以 Pane 會隱藏解析度選項，一律使用主機本身的尺寸。在 Mac 主機上切換到第二個螢幕的功能仍在處理中：某些環境下，主機會在幾秒後退回主螢幕。
@@ -184,7 +225,7 @@ Bundle ID 跟 OpenParsec 相同，所以 Pane 會直接覆蓋已安裝的 OpenPa
 | 雙指開合 | 縮放畫面（雙指縮放開啟時） | 同左 |
 | 三指點一下 | 叫出或收起鍵盤 | 同左 |
 
-- 螢幕鍵盤上方多一排按鍵：Esc、Tab、Delete、修飾鍵、F1 到 F12 和方向鍵。鍵盤擋住部分畫面時，拖曳把手就能把畫面移進來。
+- 螢幕鍵盤上方多一排 Mac 按鍵：Esc、⌃、⌥、⌘、⇧、Tab、F1 到 F12、方向鍵和 Delete。鍵盤擋住部分畫面時，拖曳把手就能把畫面移進來。
 - **滑鼠與鍵盤**：支援 USB 滑鼠與鍵盤。Option 鍵可以當成 Command 鍵用（設定 > Option 鍵當 Command 鍵）。
 - **遊戲手把**：串流時按任一板機鍵，Parsec 就會抓到手把。使用前要先把主機端設好，例如安裝虛擬 USB 驅動。
 - **子母畫面**：離開 App 時串流會縮成浮動視窗（設定 > 子母畫面）。
@@ -194,7 +235,7 @@ Bundle ID 跟 OpenParsec 相同，所以 Pane 會直接覆蓋已安裝的 OpenPa
 
 | 區塊 | 可以調整的項目 |
 |---|---|
-| 觸控與滑鼠 | 觸控模式、哪根手指按右鍵、游標速度、游標大小、捲動速度、反向捲動、雙指縮放 |
+| 觸控與滑鼠 | 觸控模式、哪根手指按右鍵、游標速度、游標大小、捲動速度、反向捲動、雙指縮放、畫面下方當觸控板 |
 | 鍵盤 | 鍵盤按鈕、Option 鍵當 Command 鍵 |
 | 影像 | 繪圖引擎（Metal 或 OpenGL）、解析度（非 Mac 主機）、碼率、幀率、固定幀率、編碼格式（H.264 或 H.265） |
 | 串流時 | 串流資訊、選單按鈕、從邊緣滑出選單、隱藏狀態列、子母畫面、開始時靜音 |
@@ -230,7 +271,8 @@ Bundle ID 跟 OpenParsec 相同，所以 Pane 會直接覆蓋已安裝的 OpenPa
 - 新的串流選單，含碼率、切換螢幕與解析度
 - Mac 主機不送解析度、隱藏解析度選項
 - 修正 Metal 畫面拉伸、收鍵盤、游標資料競態、App 被關掉時正確斷線，以及 nightly CI 的版本資訊
-- 改名為 Pane，換上新的 icon 和強調色
+- 直向與半摺時畫面下方的 Mac 手勢觸控板
+- 改名為 Pane，換上新的 icon 與黑白配色
 
 ### 致謝與授權
 
