@@ -55,7 +55,7 @@ In portrait, and on the lower half of a half-folded iPhone Duo, the picture sits
 
 A toolbar under the trackpad holds the stream menu, Mission Control, Show Desktop and the keyboard, so nothing covers the picture. Fingers show as soft lights on the glass and each multi-finger gesture briefly names what it did.
 
-With the keyboard up, the iPhone keyboard takes the lower part and a row of Mac keys sits above it: Esc, ⌃, ⌥, ⌘, ⇧, Tab, F1 to F12, the arrows and Delete. A modifier stays down until the next key. Turn the trackpad off in Settings > Trackpad Below the Picture.
+With the keyboard up, the iPhone keyboard takes the lower part and a row of Mac keys sits above it: Esc, ⌃, ⌥, ⌘, ⇧, Tab, F1 to F12, the arrows and Delete. A modifier stays down until the next key. Half open, the keys move into the keyboard's own top bar on the lower half when the system shows one; otherwise they stay above the keyboard. Turn the trackpad off in Settings > Trackpad Below the Picture.
 
 **Mac hosts**
 A Mac host streams each monitor at its own resolution, so Pane hides the resolution choice and always asks for the host's own size. Switching to a second monitor on a Mac host is still being worked on: on some setups the host goes back to the main monitor a few seconds later.
@@ -194,7 +194,7 @@ Pane 是 kv 開發的開源 iOS / iPadOS [Parsec](https://parsec.app) 用戶端�
 
 觸控板下方的工具列放著串流選單、指揮中心、顯示桌面和鍵盤，畫面上不會有任何按鈕。手指在玻璃上會顯示淡淡的光點，多指手勢觸發時會短暫顯示它做了什麼。
 
-叫出鍵盤時，下方換成 iPhone 鍵盤，上面多一排 Mac 按鍵：Esc、⌃、⌥、⌘、⇧、Tab、F1 到 F12、方向鍵和 Delete。修飾鍵會按住，直到按下一個鍵。可以在「設定 > 畫面下方當觸控板」關閉。
+叫出鍵盤時，下方換成 iPhone 鍵盤，上面多一排 Mac 按鍵：Esc、⌃、⌥、⌘、⇧、Tab、F1 到 F12、方向鍵和 Delete。修飾鍵會按住，直到按下一個鍵。半摺時，系統有顯示鍵盤頂端的工具列，按鍵就會移進那裡，留在下半部；沒有的話就留在鍵盤上方。可以在「設定 > 畫面下方當觸控板」關閉。
 
 **Mac 主機**
 Mac 主機會以每個螢幕本身的解析度串流，所以 Pane 會隱藏解析度選項，一律使用主機本身的尺寸。在 Mac 主機上切換到第二個螢幕的功能仍在處理中：某些環境下，主機會在幾秒後退回主螢幕。

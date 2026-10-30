@@ -86,6 +86,10 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	private var panHandle: UIImageView?
 	private var keyScrollView: UIScrollView?
 	private var keyBarDone: UIButton?
+	// the Mac keys ride in the keyboard's shortcut bar when half open; nil until a keyboard shows whether there is one
+	private var keysInShortcutBar = false
+	private var shortcutBarKeys: [KeyboardButton] = []
+	private var shortcutBarShown: Bool?
 	private var panStartOffset: CGPoint = .zero
 	private var keyboardCoversPicture = false
 	var onKeyboardVisibilityChanged: ((Bool) -> Void)?
@@ -385,12 +389,19 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
         clearToolbarModifiers(sendToHost: true)
         keyboardAccessoriesView = nil
         if keyboardVisible {
+            configureKeyPlacement()
             reloadInputViews()
         }
 	}
 
 	override func viewDidLayoutSubviews() {
 		super.viewDidLayoutSubviews()
+		// folding or unfolding with the keyboard up moves the keys without a size change
+		if keyboardVisible && isFirstResponder {
+			let before = keysInShortcutBar
+			configureKeyPlacement()
+			if before != keysInShortcutBar { reloadInputViews() }
+		}
 		// glkView/contentView get sized from possibly-stale bounds in viewDidLoad and have no
 		// autoresizing, so the stream renders in a corner until layout re-applies the size.
 		// only acts when the stream frame changes (rotation, fold / unfold, split view, half fold).
@@ -440,15 +451,11 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	func streamLayout() -> (picture: CGRect, trackpad: CGRect?) {
 		let b = view.bounds
 		let padBottom = b.maxY - view.safeAreaInsets.bottom
-		#if compiler(>=6.4)
-		if #available(iOS 27.1, *),
-		   let fold = view.reservedRegions(kind: .division).first(where: { $0.isActive && $0.frame.width > $0.frame.height }),
-		   fold.frame.minY > b.height / 4 {
-			let picture = CGRect(x: 0, y: 0, width: b.width, height: fold.frame.minY)
-			let pad = CGRect(x: 0, y: fold.frame.maxY, width: b.width, height: padBottom - fold.frame.maxY)
+		if let fold = halfFold() {
+			let picture = CGRect(x: 0, y: 0, width: b.width, height: fold.minY)
+			let pad = CGRect(x: 0, y: fold.maxY, width: b.width, height: padBottom - fold.maxY)
 			return (picture, SettingsHandler.trackpadBelowPicture && pad.height > 60 ? pad : nil)
 		}
-		#endif
 		// ponytail: a vertical fold (book posture) keeps the stream across both halves
 		let host = CGSize(width: CGFloat(CParsec.hostWidth), height: CGFloat(CParsec.hostHeight))
 		if SettingsHandler.trackpadBelowPicture,
@@ -456,6 +463,18 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 			return (picture, CGRect(x: 0, y: picture.maxY, width: b.width, height: padBottom - picture.maxY))
 		}
 		return (b, nil)
+	}
+
+	// the hinge when half open like a laptop
+	func halfFold() -> CGRect? {
+		#if compiler(>=6.4)
+		if #available(iOS 27.1, *),
+		   let fold = view.reservedRegions(kind: .division).first(where: { $0.isActive && $0.frame.width > $0.frame.height }),
+		   fold.frame.minY > view.bounds.height / 4 {
+			return fold.frame
+		}
+		#endif
+		return nil
 	}
 
 	override func viewDidAppear(_ animated: Bool) {
@@ -602,6 +621,7 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	@objc func keyboardWillShow(notification: NSNotification) {
 		// keyboard notifications are app wide; another window's text field is not ours
 		guard isFirstResponder else { return }
+		checkShortcutBar()
 		if let keyboardFrame = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
 			let keyboardFrameInView = view.convert(keyboardFrame, from: nil)
 			let scrollFrameInView = scrollView.convert(scrollView.bounds, to: view)
@@ -1402,34 +1422,31 @@ extension ParsecViewController: UIPointerInteractionDelegate {
 
 }
 
+// a keycap in the dark key row; a latched modifier turns white like the rest of the app
 class KeyboardButton: UIButton {
 	let keyText: String
 	let isToggleable: Bool
-	var isOn = false
+	var isOn = false { didSet { restyle() } }
+	override var isHighlighted: Bool { didSet { restyle() } }
 
 	required init(keyText: String, isToggleable: Bool) {
 		self.keyText = keyText
 		self.isToggleable = isToggleable
 		super.init(frame: .zero)
-		addTarget(self, action: #selector(handleTouchDown), for: .touchDown)
-		addTarget(self, action: #selector(handleTouchUp), for: [.touchUpInside, .touchDragExit, .touchCancel])
-
+		layer.cornerRadius = 8
+		layer.cornerCurve = .continuous
+		overrideUserInterfaceStyle = .dark
+		restyle()
 	}
 
 	required init?(coder: NSCoder) {
 		fatalError("init(coder:) has not been implemented")
 	}
 
-	// Add a press-down animation for feedback
-	@objc private func handleTouchDown() {
-		self.alpha = 0.5
-	}
-
-	// Restore to normal state when touch ends
-	@objc private func handleTouchUp() {
-		UIView.animate(withDuration: 0.2) {
-			self.alpha = 1.0
-		}
+	private func restyle() {
+		backgroundColor = isOn ? .white : UIColor(white: isHighlighted ? 0.42 : 0.24, alpha: 1)
+		setTitleColor(isOn ? .black : .white, for: .normal)
+		tintColor = isOn ? .black : .white
 	}
 }
 
@@ -1489,9 +1506,66 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 		clearToolbarModifiers(sendToHost: true)
 	}
 
+	// Mac order: esc and the modifiers, the function row, then the arrows and delete
+	private func makeKeyGroups() -> [[KeyboardButton]] {
+		let key = createKeyboardButton
+		return [
+			[key("esc", "UIKeyInputEscape", false), key("⌃", "CONTROL", true), key("⌥", "LALT", true),
+			 key("⌘", "LGUI", true), key("⇧", "SHIFT", true), key("⇥", "TAB", false)],
+			(1...12).map { key("F\($0)", "F\($0)", false) },
+			[key("←", "LEFT", false), key("↓", "DOWN", false), key("↑", "UP", false), key("→", "RIGHT", false),
+			 key("⌦", "DELETE", false)],
+		]
+	}
+
+	// Half open, the system keeps anything above the keyboard on the upper half, so the key row would sit
+	// on the picture. The keyboard's own shortcut bar is the one spot on the lower half: the keys go there
+	// when this iPhone shows that bar, and back above the keyboard when it does not.
+	func configureKeyPlacement() {
+		let folded = halfFold() != nil
+		// a later fold gets a fresh look, the bar may show this time
+		if !folded { shortcutBarShown = nil }
+		let inBar = folded && shortcutBarShown != false
+		guard inBar != keysInShortcutBar else { return }
+		// let go of a latched modifier before its key goes away
+		clearToolbarModifiers(sendToHost: true)
+		keysInShortcutBar = inBar
+		shortcutBarKeys = []
+		let item = inputAssistantItem
+		guard inBar else {
+			item.leadingBarButtonGroups = []
+			item.trailingBarButtonGroups = []
+			return
+		}
+		let groups = makeKeyGroups()
+		shortcutBarKeys = groups.flatMap { $0 }
+		func group(_ keys: [KeyboardButton], collapsed title: String? = nil) -> UIBarButtonItemGroup {
+			let items = keys.map { UIBarButtonItem(customView: $0) }
+			// when space runs out the system folds a group into this one key and pops the rest up
+			return UIBarButtonItemGroup(barButtonItems: items, representativeItem: title.map { UIBarButtonItem(title: $0, style: .plain, target: nil, action: nil) })
+		}
+		let done = UIBarButtonItem(image: UIImage(systemName: "keyboard.chevron.compact.down"), style: .plain, target: self, action: #selector(doneTapped))
+		item.leadingBarButtonGroups = [group(groups[0])]
+		item.trailingBarButtonGroups = [group(groups[1], collapsed: "fn"), group(groups[2], collapsed: "←→"),
+										UIBarButtonItemGroup(barButtonItems: [done], representativeItem: nil)]
+	}
+
+	// a key in the shortcut bar that never reaches a window means this iPhone draws no such bar
+	func checkShortcutBar() {
+		guard keysInShortcutBar else { return }
+		DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+			guard let self, self.keysInShortcutBar, self.isFirstResponder else { return }
+			let shown = self.shortcutBarKeys.contains { $0.window != nil }
+			guard !shown else { self.shortcutBarShown = true; return }
+			self.shortcutBarShown = false
+			self.configureKeyPlacement()
+			self.reloadInputViews()
+		}
+	}
+
     // copied from moonlight https://github.com/moonlight-stream/moonlight-ios/blob/022352c1667788d8626b659d984a290aa5c25e17/Limelight/Input/StreamView.m#L393
 	override var inputAccessoryView: UIView? {
-
+		if keysInShortcutBar { return nil }
 		if let keyboardAccessoriesView {
 			return keyboardAccessoriesView
 		}
@@ -1500,53 +1574,31 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 		let containerView = AccessoryContainerView(frame: CGRect(x: 0, y: 0, width: self.view.bounds.width, height: 94))
         containerView.autoresizingMask = [.flexibleWidth]
         containerView.backgroundColor = .clear
+		containerView.overrideUserInterfaceStyle = .dark
 
 		// Use a simple UIView instead of UIToolbar to avoid constraint conflicts
 		let toolbarBackground = UIView(frame: CGRect(x: 0, y: 50, width: containerView.bounds.width, height: 44))
 		toolbarBackground.autoresizingMask = [.flexibleWidth, .flexibleTopMargin]
-		toolbarBackground.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.9)
+		toolbarBackground.backgroundColor = UIColor(white: 0.07, alpha: 0.96)
+		let hairline = UIView(frame: CGRect(x: 0, y: 0, width: toolbarBackground.bounds.width, height: 0.5))
+		hairline.autoresizingMask = [.flexibleWidth]
+		hairline.backgroundColor = UIColor(white: 1, alpha: 0.1)
+		toolbarBackground.addSubview(hairline)
 
 		let scrollView = UIScrollView(frame: CGRect(x: 8, y: 0, width: toolbarBackground.bounds.width - 80, height: 44))
 		scrollView.autoresizingMask = [.flexibleWidth]
 		scrollView.showsHorizontalScrollIndicator = false
 
-		let buttonStackView = UIStackView()
+		// keys sit close within a group, with a wider gap between groups, like a Mac keyboard's clusters
+		let buttonStackView = UIStackView(arrangedSubviews: makeKeyGroups().map { keys in
+			let group = UIStackView(arrangedSubviews: keys)
+			group.spacing = 6
+			return group
+		})
 		buttonStackView.axis = .horizontal
-		buttonStackView.distribution = .equalSpacing
 		buttonStackView.alignment = .center
-		buttonStackView.spacing = 8
+		buttonStackView.spacing = 16
 		buttonStackView.translatesAutoresizingMaskIntoConstraints = false
-
-		let shiftBarButton = createKeyboardButton(displayText: "⇧", keyText: "SHIFT", isToggleable: true)
-		let windowsBarButton = createKeyboardButton(displayText: "⌘", keyText: "LGUI", isToggleable: true)
-		let tabBarButton = createKeyboardButton(displayText: "⇥", keyText: "TAB", isToggleable: false)
-		let escapeBarButton = createKeyboardButton(displayText: "⎋", keyText: "UIKeyInputEscape", isToggleable: false)
-		let controlBarButton = createKeyboardButton(displayText: "⌃", keyText: "CONTROL", isToggleable: true)
-		let altBarButton = createKeyboardButton(displayText: "⌥", keyText: "LALT", isToggleable: true)
-		let deleteBarButton = createKeyboardButton(displayText: "Del", keyText: "DELETE", isToggleable: false)
-		let f1Button = createKeyboardButton(displayText: "F1", keyText: "F1", isToggleable: false)
-		let f2Button = createKeyboardButton(displayText: "F2", keyText: "F2", isToggleable: false)
-		let f3Button = createKeyboardButton(displayText: "F3", keyText: "F3", isToggleable: false)
-		let f4Button = createKeyboardButton(displayText: "F4", keyText: "F4", isToggleable: false)
-		let f5Button = createKeyboardButton(displayText: "F5", keyText: "F5", isToggleable: false)
-		let f6Button = createKeyboardButton(displayText: "F6", keyText: "F6", isToggleable: false)
-		let f7Button = createKeyboardButton(displayText: "F7", keyText: "F7", isToggleable: false)
-		let f8Button = createKeyboardButton(displayText: "F8", keyText: "F8", isToggleable: false)
-		let f9Button = createKeyboardButton(displayText: "F9", keyText: "F9", isToggleable: false)
-		let f10Button = createKeyboardButton(displayText: "F10", keyText: "F10", isToggleable: false)
-		let f11Button = createKeyboardButton(displayText: "F11", keyText: "F11", isToggleable: false)
-		let f12Button = createKeyboardButton(displayText: "F12", keyText: "F12", isToggleable: false)
-		let upButton = createKeyboardButton(displayText: "↑", keyText: "UP", isToggleable: false)
-		let downButton = createKeyboardButton(displayText: "↓", keyText: "DOWN", isToggleable: false)
-		let leftButton = createKeyboardButton(displayText: "←", keyText: "LEFT", isToggleable: false)
-		let rightButton = createKeyboardButton(displayText: "→", keyText: "RIGHT", isToggleable: false)
-
-		// Mac order: esc and the modifiers first, then the function row, the arrows and delete
-		let buttons = [escapeBarButton, controlBarButton, altBarButton, windowsBarButton, shiftBarButton, tabBarButton, f1Button, f2Button, f3Button, f4Button, f5Button, f6Button, f7Button, f8Button, f9Button, f10Button, f11Button, f12Button, leftButton, downButton, upButton, rightButton, deleteBarButton]
-
-		for button in buttons {
-			buttonStackView.addArrangedSubview(button)
-		}
 
 		scrollView.addSubview(buttonStackView)
 
@@ -1563,13 +1615,15 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 		let doneButton = UIButton(type: .system)
 		doneButton.frame = CGRect(x: toolbarBackground.bounds.width - 70, y: 0, width: 60, height: 44)
 		doneButton.autoresizingMask = [.flexibleLeftMargin]
-		doneButton.setTitle(String(localized: "Done"), for: .normal)
+		doneButton.setImage(UIImage(systemName: "keyboard.chevron.compact.down", withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .medium)), for: .normal)
+		doneButton.tintColor = .white
+		doneButton.accessibilityLabel = String(localized: "Done")
 		doneButton.addTarget(self, action: #selector(doneTapped), for: .touchUpInside)
 
 		let handle = UIImageView(image: UIImage(systemName: "arrow.up.and.down"))
 		handle.frame = CGRect(x: 4, y: 0, width: 40, height: 44)
 		handle.contentMode = .center
-		handle.tintColor = .label
+		handle.tintColor = .white
 		handle.isUserInteractionEnabled = true
 		handle.isHidden = true
 		handle.isAccessibilityElement = true
@@ -1593,25 +1647,17 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 		return containerView
 	}
 
-	func createKeyboardButton(displayText: String, keyText: String, isToggleable: Bool) -> UIButton {
+	func createKeyboardButton(displayText: String, keyText: String, isToggleable: Bool) -> KeyboardButton {
 		let button = KeyboardButton(keyText: keyText, isToggleable: isToggleable)
-
-		// Set the image and button properties
 		button.setTitle(displayText, for: .normal)
-		button.titleLabel?.font = .systemFont(ofSize: 10)
-		button.frame = CGRect(x: 0, y: 0, width: 36, height: 36)
-		button.titleLabel?.frame = CGRect(x: 0, y: 0, width: 30, height: 30)
-		if let label = button.titleLabel {
-			label.textAlignment = .center
-		}
-		button.backgroundColor = .black
-		button.layer.cornerRadius = 3.0
-
-		button.titleLabel?.contentMode = .scaleAspectFit
-
-		// Set target and action for button
+		// symbols read larger than words at the same size
+		button.titleLabel?.font = displayText.count == 1 ? .systemFont(ofSize: 17, weight: .medium) : .systemFont(ofSize: 14, weight: .medium)
+		button.translatesAutoresizingMaskIntoConstraints = false
+		NSLayoutConstraint.activate([
+			button.widthAnchor.constraint(equalToConstant: displayText.count > 2 ? 46 : 40),
+			button.heightAnchor.constraint(equalToConstant: 34),
+		])
 		button.addTarget(self, action: #selector(toolbarButtonClicked(_:)), for: .touchUpInside)
-
 		return button
 	}
 
@@ -1620,10 +1666,9 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 	}
 
 	private func clearToolbarModifiers(sendToHost: Bool) {
-		guard let bar = keyboardAccessoriesView else { return }
-		for button in toolbarButtons(in: bar) where button.isOn {
+		let keys = (keyboardAccessoriesView.map { toolbarButtons(in: $0) } ?? []) + shortcutBarKeys
+		for button in keys where button.isOn {
 			button.isOn = false
-			button.backgroundColor = .black
 			if sendToHost {
 				CParsec.sendVirtualKeyboardInput(text: button.keyText, isOn: false)
 			}
@@ -1641,11 +1686,6 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 
 		if isToggleable {
 			isOn.toggle()
-			if isOn {
-				sender.backgroundColor = .lightGray
-			} else {
-				sender.backgroundColor = .black
-			}
 		}
 
 		sender.isOn = isOn
@@ -1678,6 +1718,7 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 		if visible {
 			keyboardVisible = true
             DispatchQueue.main.async {
+                self.configureKeyPlacement()
                 self.reloadInputViews()
                 let success = self.becomeFirstResponder()
                 if !success {
