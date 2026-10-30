@@ -119,9 +119,7 @@ struct MainView: View {
 				Label("Hosts", systemImage: "desktopcomputer").tag(Page.hosts)
 				Label("Friends", systemImage: "person.2.fill").tag(Page.friends)
 				Section {
-					Button(action: { withAnimation(.easeInOut(duration: 0.24)) { inSettings = true } }) {
-						Label("Settings", systemImage: "gear")
-					}
+					Label("Settings", systemImage: "gear").tag(Page.settings)
 					Button(role: .destructive, action: { showLogoutAlert = true }) {
 						Label("Logout", systemImage: "rectangle.portrait.and.arrow.right")
 					}
@@ -132,9 +130,8 @@ struct MainView: View {
 				Alert(title: Text("Are you sure you want to logout?"), primaryButton: .destructive(Text("Logout"), action: logout), secondaryButton: .cancel(Text("Cancel")))
 			}
 		} detail: {
-			pages
-				.background(Color("BackgroundGray").ignoresSafeArea())
-				.navigationTitle(page == .hosts ? hostCountStr : friendCountStr)
+			nativePages
+				.navigationTitle(page == .hosts ? hostCountStr : page == .friends ? friendCountStr : "Settings")
 				.navigationBarTitleDisplayMode(.inline)
 				.toolbar {
 					if page == .hosts {
@@ -505,6 +502,174 @@ struct MainView: View {
 		}
 		.frame(maxWidth: .infinity)
 			.foregroundColor(Color("Foreground"))
+	}
+
+	// iOS 17+ page content: system lists, the grouped background comes from the list
+	@available(iOS 17.0, *)
+	@ViewBuilder
+	private var nativePages: some View {
+		switch page {
+		case .hosts: nativeHostsList
+		case .friends: nativeFriendsList
+		case .settings: SettingsForm()
+		}
+	}
+
+	@available(iOS 17.0, *)
+	private var nativeHostsList: some View {
+		List {
+			if sessionExpired || refreshError != nil {
+				Section {
+					if sessionExpired {
+						HStack {
+							Label("Your Parsec session expired", systemImage: "person.crop.circle.badge.exclamationmark")
+							Spacer()
+							Button("Sign In", action: logout)
+								.fontWeight(.semibold)
+								.buttonStyle(.borderless)
+						}
+					}
+					if let refreshError = refreshError {
+						HStack {
+							Label(refreshError, systemImage: "exclamationmark.triangle")
+							Spacer()
+							Button("Retry", action: refreshHosts)
+								.fontWeight(.semibold)
+								.buttonStyle(.borderless)
+						}
+					}
+				}
+			}
+
+			if let lastHost = lastHostShown, !isConnecting {
+				Section("Last connected") {
+					HStack(spacing: 12) {
+						Label(lastHost, systemImage: "clock.arrow.circlepath")
+							.font(.headline)
+							.lineLimit(1)
+						Spacer()
+						Button("Reconnect", action: reconnectLastHost)
+							.buttonStyle(.borderedProminent)
+							.buttonBorderShape(.capsule)
+						Button(action: clearLastHost) {
+							Image(systemName: "xmark.circle.fill")
+								.font(.title3)
+								.foregroundStyle(.secondary)
+						}
+						.buttonStyle(.borderless)
+						.accessibilityLabel("Forget last host")
+					}
+					Toggle("Reconnect on app launch", isOn: Binding(
+						get: { SettingsHandler.autoConnectOnLaunch },
+						set: { SettingsHandler.autoConnectOnLaunch = $0 }
+					))
+				}
+			}
+
+			Section {
+				ForEach(hosts) { i in
+					HStack(spacing: 12) {
+						avatar(userId: i.user.id, size: 44)
+						VStack(alignment: .leading, spacing: 2) {
+							Text(i.hostname)
+								.font(.headline)
+							Text("\(i.user.name)#\(String(i.user.id))")
+								.font(.subheadline)
+								.foregroundStyle(.secondary)
+							if i.connections > 0 {
+								Label(String(i.connections), systemImage: "person.fill")
+									.font(.caption)
+									.foregroundStyle(.secondary)
+									.accessibilityLabel("\(i.connections) connected")
+							}
+						}
+						Spacer()
+						Button("Connect") { connectTo(i) }
+							.buttonStyle(.borderedProminent)
+							.buttonBorderShape(.capsule)
+					}
+					.padding(.vertical, 2)
+					.contextMenu {
+						Button(action: { connectTo(i) }) {
+							Label("Connect", systemImage: "play.display")
+						}
+						Button(action: { UIPasteboard.general.string = i.hostname }) {
+							Label("Copy Name", systemImage: "doc.on.doc")
+						}
+					}
+				}
+				if hosts.isEmpty, !isRefreshing, !sessionExpired, refreshError == nil, !refreshTime.isEmpty {
+					ContentUnavailableView("No Hosts", systemImage: "desktopcomputer", description: Text("Computers running Parsec on your account show up here."))
+				}
+			} header: {
+				Text("Hosts")
+			} footer: {
+				if isRefreshing {
+					HStack(spacing: 8) {
+						ProgressView()
+						Text("Refreshing hosts...")
+					}
+				} else if !refreshTime.isEmpty {
+					Text(refreshTime)
+				}
+			}
+		}
+		.listStyle(.insetGrouped)
+		.refreshable {
+			refreshHosts()
+			// refreshHosts returns at once; hold the spinner until the request lands
+			while isRefreshing {
+				try? await Task.sleep(for: .milliseconds(100))
+			}
+		}
+	}
+
+	@available(iOS 17.0, *)
+	private var nativeFriendsList: some View {
+		List {
+			if let user = userInfo {
+				Section("You") {
+					HStack(spacing: 12) {
+						avatar(userId: user.id, size: 40)
+						Text("\(user.username)#\(String(user.id))")
+							.font(.body.weight(.medium))
+					}
+				}
+			}
+			if friends.count > 0 {
+				Section("Friends") {
+					ForEach(friends) { i in
+						HStack(spacing: 12) {
+							avatar(userId: i.id, size: 40)
+							Text("\(i.username)#\(String(i.id))")
+						}
+					}
+				}
+			}
+		}
+		.listStyle(.insetGrouped)
+		.refreshable {
+			refreshSelf()
+			refreshFriends()
+		}
+	}
+
+	private func avatar(userId: Int, size: Int) -> some View {
+		URLImage(url: URL(string: "https://parsecusercontent.com/cors-resize-image/w=\(size * 2),h=\(size * 2),fit=crop,background=white,q=90,f=jpeg/avatars/\(String(userId))/avatar"),
+			output: {
+				$0
+					.resizable()
+					.aspectRatio(contentMode: .fill)
+			},
+			placeholder: {
+				Image("IconTransparent")
+					.resizable()
+					.aspectRatio(contentMode: .fit)
+					.background(Color(uiColor: .tertiarySystemFill))
+			})
+			.frame(width: CGFloat(size), height: CGFloat(size))
+			.clipShape(RoundedRectangle(cornerRadius: CGFloat(size) * 0.22, style: .continuous))
+			.accessibilityHidden(true)
 	}
 
 	func initView() {
@@ -917,4 +1082,5 @@ private struct CompactDetailSplit<Sidebar: View, Detail: View>: View {
 private enum Page {
 	case hosts
 	case friends
+	case settings // iOS 17 sidebar only; older versions open the SettingsView overlay
 }

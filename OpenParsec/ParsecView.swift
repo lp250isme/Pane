@@ -188,7 +188,10 @@ struct ParsecView: View {
 	@AppStorage("keyboardHintShown") var keyboardHintShown: Bool = false
 	@AppStorage("keyboardPanHintShown") var keyboardPanHintShown: Bool = false
 	@State var hint: String?
-	@State var showMenu: Bool = false
+	// drives the stats line now that the menu is a native one (was showMenu)
+	@State var showStats: Bool = false
+	// lights the menu button up after an edge swipe, a native Menu cant be opened from code
+	@State var menuAttention: Bool = false
 	@AppStorage("menuSwipeHintShown") var menuSwipeHintShown: Bool = false
 
 	@State var showKeyboard: Bool = false
@@ -238,7 +241,7 @@ struct ParsecView: View {
 				.zIndex(1)
 				.prefersPersistentSystemOverlaysHidden()
 
-			ParsecStatusBar(showMenu: $showMenu, showDCAlert: $showDCAlert, DCAlertText: $DCAlertText, parsecViewController: parsecViewController, isReconnecting: $isReconnecting, connectionLost: $connectionLost, onSilentDisconnect: { disconnect() })
+			ParsecStatusBar(showMenu: $showStats, showDCAlert: $showDCAlert, DCAlertText: $DCAlertText, parsecViewController: parsecViewController, isReconnecting: $isReconnecting, connectionLost: $connectionLost, onSilentDisconnect: { disconnect() })
 
 			if isReconnecting || connectionLost {
 				VStack(spacing: 12) {
@@ -289,24 +292,9 @@ struct ParsecView: View {
 			VStack {
 				if !hideOverlay {
 					HStack {
-						Button(action: {
-							if showMenu {
-								showMenu = false
-							} else {
-								showMenu = true
-								ParsecView.getHostUserData()
-							}
-						}) {
-							Image("IconTransparent")
-								.resizable()
-								.aspectRatio(contentMode: .fit)
-								.frame(width: 48, height: 48)
-								.background(Rectangle().fill(Color("BackgroundPrompt").opacity(showMenu ? 0.75 : 1)))
-								.cornerRadius(8)
-								.opacity(showMenu ? 1 : 0.25)
-						}
-						.padding()
-						.edgesIgnoringSafeArea(.all)
+						overlayMenuButton
+							.padding()
+							.edgesIgnoringSafeArea(.all)
 						Spacer()
 					}
 				}
@@ -324,117 +312,6 @@ struct ParsecView: View {
 						}
 						.padding(.leading)
 						.edgesIgnoringSafeArea(.all)
-						Spacer()
-					}
-				}
-				if showMenu {
-					HStack {
-						VStack(spacing: 3) {
-							Button(action: disableOverlay) {
-								Text("Hide Buttons")
-									.padding(8)
-									.frame(maxWidth: .infinity)
-									.multilineTextAlignment(.center)
-							}
-							Button(action: toggleMute) {
-								Text("Sound: \(muted ? "OFF" : "ON")")
-									.padding(8)
-									.frame(maxWidth: .infinity)
-									.multilineTextAlignment(.center)
-							}
-							Menu {
-								ForEach(resolutions, id: \.self) { resolution in
-									Button(action: {
-										changeResolution(res: resolution)
-									}) {
-										if resolution.width == dataModel.resolutionX && resolution.height == dataModel.resolutionY {
-											Label(resolution.desc, systemImage: "checkmark")
-										} else {
-											Text(resolution.desc)
-										}
-									}
-								}
-							} label: {
-								Text("Resolution")
-									.padding(8)
-									.frame(maxWidth: .infinity)
-									.multilineTextAlignment(.center)
-							}
-							Menu {
-								Button(action: {
-									changeBitRate(bitrate: 0)
-								}) {
-									if settingsStore.bitrate == 0 {
-										Label("Host Default", systemImage: "checkmark")
-									} else {
-										Text("Host Default")
-									}
-								}
-								ForEach(bitrates, id: \.self) { bitrate in
-									Button(action: {
-										changeBitRate(bitrate: bitrate)
-									}) {
-                                        if bitrate == settingsStore.bitrate {
-                                            Label("\(bitrate) Mbps", systemImage: "checkmark")
-                                        } else {
-                                            Text("\(bitrate) Mbps")
-                                        }
-									}
-								}
-							} label: {
-								Text("Bitrate")
-									.padding(8)
-									.frame(maxWidth: .infinity)
-									.multilineTextAlignment(.center)
-							}
-							if DataManager.model.displayConfigs.count > 1 {
-								Menu {
-									Button("Auto") {
-										changeDisplay(displayId: "none")
-									}
-									ForEach(DataManager.model.displayConfigs, id: \.self) { config in
-										Button("\(config.name) \(config.adapterName)") {
-											changeDisplay(displayId: config.id)
-										}
-									}
-								} label: {
-									Text("Switch Display")
-										.padding(8)
-										.frame(maxWidth: .infinity)
-										.multilineTextAlignment(.center)
-								}
-							}
-
-							Button(action: toggleConstantFps) {
-								Text("Constant Frame Rate: \(dataModel.constantFps ? "ON" : "OFF")")
-									.padding(8)
-									.frame(maxWidth: .infinity)
-									.multilineTextAlignment(.center)
-							}
-							Button(action: toggleZoom) {
-								Text("Pinch to Zoom: \(zoomEnabled ? "ON" : "OFF")")
-									.padding(8)
-									.frame(maxWidth: .infinity)
-									.multilineTextAlignment(.center)
-							}
-							Rectangle()
-								.fill(Color("Foreground"))
-								.opacity(0.25)
-								.frame(height: 1)
-							Button(action: { disconnect()}) {
-								Text("Disconnect")
-									.foregroundColor(.red)
-									.padding(8)
-									.frame(maxWidth: .infinity)
-									.multilineTextAlignment(.center)
-							}
-						}
-						.background(Rectangle().fill(Color("BackgroundPrompt").opacity(0.75)))
-						.foregroundColor(Color("Foreground"))
-						.frame(maxWidth: 230)
-						.cornerRadius(8)
-						.padding(.horizontal)
-						// .edgesIgnoringSafeArea(.all)
 						Spacer()
 					}
 				}
@@ -476,6 +353,147 @@ struct ParsecView: View {
 		}
 		.edgesIgnoringSafeArea(.all)
 
+	}
+
+	// the floating button opens a native menu, iOS 26 gives it Liquid Glass
+	@ViewBuilder
+	var overlayMenuButton: some View {
+		let menu = Menu {
+			overlayMenuContent
+		} label: {
+			overlayMenuLabel
+		}
+		.accessibilityLabel("Menu")
+
+		if #available(iOS 26, *) {
+			menu
+				.menuStyle(.button)
+				.buttonStyle(.glass)
+				.buttonBorderShape(.circle)
+				.opacity(menuAttention ? 1 : 0.5)
+		} else {
+			menu
+		}
+	}
+
+	@ViewBuilder
+	var overlayMenuLabel: some View {
+		if #available(iOS 26, *) {
+			Image("IconTransparent")
+				.resizable()
+				.aspectRatio(contentMode: .fit)
+				.frame(width: 32, height: 32)
+		} else {
+			Image("IconTransparent")
+				.resizable()
+				.aspectRatio(contentMode: .fit)
+				.frame(width: 48, height: 48)
+				.background(Rectangle().fill(Color("BackgroundPrompt")))
+				.cornerRadius(8)
+				.opacity(menuAttention ? 1 : 0.25)
+		}
+	}
+
+	@ViewBuilder
+	var overlayMenuContent: some View {
+		Section {
+			Menu {
+				ForEach(resolutions, id: \.self) { resolution in
+					Button(action: {
+						changeResolution(res: resolution)
+					}) {
+						if resolution.width == dataModel.resolutionX && resolution.height == dataModel.resolutionY {
+							Label(resolution.desc, systemImage: "checkmark")
+						} else {
+							Text(resolution.desc)
+						}
+					}
+				}
+			} label: {
+				Label("Resolution", systemImage: "aspectratio")
+			}
+
+			Menu {
+				Button(action: {
+					changeBitRate(bitrate: 0)
+				}) {
+					if settingsStore.bitrate == 0 {
+						Label("Host Default", systemImage: "checkmark")
+					} else {
+						Text("Host Default")
+					}
+				}
+				ForEach(bitrates, id: \.self) { bitrate in
+					Button(action: {
+						changeBitRate(bitrate: bitrate)
+					}) {
+						if bitrate == settingsStore.bitrate {
+							Label("\(bitrate) Mbps", systemImage: "checkmark")
+						} else {
+							Text("\(bitrate) Mbps")
+						}
+					}
+				}
+			} label: {
+				Label("Bitrate", systemImage: "speedometer")
+			}
+
+			if dataModel.displayConfigs.count > 1 {
+				Menu {
+					Button(action: {
+						changeDisplay(displayId: "none")
+					}) {
+						if dataModel.output == "none" {
+							Label("Auto", systemImage: "checkmark")
+						} else {
+							Text("Auto")
+						}
+					}
+					ForEach(dataModel.displayConfigs, id: \.self) { config in
+						Button(action: {
+							changeDisplay(displayId: config.id)
+						}) {
+							if dataModel.output == config.id {
+								Label("\(config.name) \(config.adapterName)", systemImage: "checkmark")
+							} else {
+								Text("\(config.name) \(config.adapterName)")
+							}
+						}
+					}
+				} label: {
+					Label("Switch Display", systemImage: "display")
+				}
+			}
+		}
+
+		Section {
+			Toggle(isOn: Binding(get: { !muted }, set: { _ in toggleMute() })) {
+				Label("Sound", systemImage: "speaker.wave.2")
+			}
+			Toggle(isOn: Binding(get: { dataModel.constantFps }, set: { _ in toggleConstantFps() })) {
+				Label("Constant Frame Rate", systemImage: "timer")
+			}
+			Toggle(isOn: Binding(get: { zoomEnabled }, set: { _ in toggleZoom() })) {
+				Label("Pinch to Zoom", systemImage: "plus.magnifyingglass")
+			}
+			Toggle(isOn: Binding(get: { showStats || SettingsHandler.alwaysShowStatus }, set: { showStats = $0 })) {
+				Label("Show Stats", systemImage: "chart.bar")
+			}
+			// the always show setting wins, the item just reflects it
+			.disabled(SettingsHandler.alwaysShowStatus)
+		}
+
+		Section {
+			Button(action: disableOverlay) {
+				Label("Hide Buttons", systemImage: "eye.slash")
+			}
+		}
+
+		Section {
+			Button(role: .destructive, action: { disconnect() }) {
+				Label("Disconnect", systemImage: "power")
+			}
+		}
 	}
 
 	func post() {
@@ -536,11 +554,15 @@ struct ParsecView: View {
 
 		let overlayHidden = $hideOverlay
 		let keyboardButtonHidden = $hideKeyboardButton
-		let menuShown = $showMenu
+		let menuAttention = $menuAttention
+		// a native Menu cant be opened from code, so the swipe brings the button back and lights it up
 		parsecViewController.onMenuEdgeSwipe = {
 			overlayHidden.wrappedValue = false
 			keyboardButtonHidden.wrappedValue = !SettingsHandler.showKeyboardButton
-			menuShown.wrappedValue = true
+			withAnimation { menuAttention.wrappedValue = true }
+			DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+				withAnimation { menuAttention.wrappedValue = false }
+			}
 			ParsecView.getHostUserData()
 		}
 
@@ -565,7 +587,7 @@ struct ParsecView: View {
 	func disableOverlay() {
 		hideOverlay = true
 		hideKeyboardButton = true
-		showMenu = false
+		showStats = false
 		parsecViewController.updateMenuEdgeSwipe(menuHidden: true)
 		offerHint(always: true)
 	}
@@ -576,7 +598,7 @@ struct ParsecView: View {
 		guard menu || keyboard else { return }
 		if menu { menuSwipeHintShown = true }
 		if keyboard { keyboardHintShown = true }
-		let text = [menu ? "Swipe from the left edge for the menu" : nil, keyboard ? "Tap with three fingers to show or hide the keyboard" : nil].compactMap { $0 }.joined(separator: "\n")
+		let text = [menu ? "Swipe from the left edge to bring the menu back" : nil, keyboard ? "Tap with three fingers to show or hide the keyboard" : nil].compactMap { $0 }.joined(separator: "\n")
 		withAnimation { hint = text }
 		DispatchQueue.main.asyncAfter(deadline: .now() + (menu && keyboard ? 6 : 4)) {
 			withAnimation { hint = nil }
