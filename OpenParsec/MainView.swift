@@ -8,13 +8,13 @@ struct MainView: View {
 	@State private var sidebarSelection: Page? = .hosts
 
 	// Host page vars
-	@State var hostCountStr: String = "0 hosts"
+	@State var hostCountStr: String = String(localized: "\(0) hosts")
 	@State var refreshTime: String = ""
 
 	@State var hosts: [IdentifiableHostInfo] = []
 
 	// Friend page vars
-	@State var friendCountStr: String = "0 friends"
+	@State var friendCountStr: String = String(localized: "\(0) friends")
 
 	@State var userInfo: IdentifiableUserInfo?
 	@State var friends: [IdentifiableUserInfo] = []
@@ -804,7 +804,7 @@ struct MainView: View {
 						if statusCode == 200 { // 200 OK
 							sessionExpired = false
 							guard let info: HostInfoList = try? decoder.decode(HostInfoList.self, from: data) else {
-								refreshError = "Couldn't refresh hosts: bad response"
+								refreshError = String(localized: "Couldn't refresh hosts: bad response")
 								return
 							}
 							refreshError = nil
@@ -819,24 +819,19 @@ struct MainView: View {
 								if lastHostShown != nil { lastHostShown = current.hostname }
 							}
 
-							var grammar: String = "hosts"
-							if hosts.count == 1 {
-								grammar = "host"
-							}
-
-							hostCountStr = "\(hosts.count) \(grammar)"
+							hostCountStr = hosts.count == 1 ? String(localized: "\(hosts.count) host") : String(localized: "\(hosts.count) hosts")
 
 							let formatter = DateFormatter()
 							formatter.dateStyle = .short
 							formatter.timeStyle = .short
-							refreshTime = "Last refreshed at \(formatter.string(from: Date()))"
+							refreshTime = String(localized: "Last refreshed at \(formatter.string(from: Date()))")
 						} else if statusCode == 403, let info: ErrorInfo = try? decoder.decode(ErrorInfo.self, from: data) { // 403 Forbidden
-							refreshError = "Couldn't refresh hosts: \(info.error)"
+							refreshError = String(localized: "Couldn't refresh hosts: \(info.error)")
 						} else {
-							refreshError = "Couldn't refresh hosts (HTTP \(statusCode))"
+							refreshError = String(localized: "Couldn't refresh hosts (HTTP \(statusCode))")
 						}
 					} else {
-						refreshError = "Can't reach Parsec"
+						refreshError = String(localized: "Can't reach Parsec")
 					}
 				}
 			}
@@ -875,7 +870,7 @@ struct MainView: View {
 						} else {
 							guard let info: ErrorInfo = try? decoder.decode(ErrorInfo.self, from: data) else { return }
 
-							baseAlertText = "Error gathering user info: \(info.error)"
+							baseAlertText = String(localized: "Error gathering user info: \(info.error)")
 							showBaseAlert = true
 						}
 					}
@@ -919,16 +914,11 @@ struct MainView: View {
 								}
 							}
 
-							var grammar: String = "friends"
-							if friends.count == 1 {
-								grammar = "friend"
-							}
-
-							friendCountStr = "\(friends.count) \(grammar)"
+							friendCountStr = friends.count == 1 ? String(localized: "\(friends.count) friend") : String(localized: "\(friends.count) friends")
 						} else {
 							guard let info: ErrorInfo = try? decoder.decode(ErrorInfo.self, from: data) else { return }
 
-							baseAlertText = "Error gathering friends: \(info.error)"
+							baseAlertText = String(localized: "Error gathering friends: \(info.error)")
 							showBaseAlert = true
 						}
 					}
@@ -946,7 +936,7 @@ struct MainView: View {
 				waitingForApproval = false
 				retryingConnect = false
 			}
-			baseAlertText = "No network connection"
+			baseAlertText = String(localized: "No network connection")
 			showBaseAlert = true
 			return
 		}
@@ -959,7 +949,7 @@ struct MainView: View {
 				waitingForApproval = false
 				retryingConnect = false
 			}
-			baseAlertText = "Already streaming in another window"
+			baseAlertText = String(localized: "Already streaming in another window")
 			showBaseAlert = true
 			return
 		}
@@ -1053,7 +1043,7 @@ struct MainView: View {
 			isConnecting = false
 			retryingConnect = false
 		}
-		baseAlertText = "\(who.hostname) didn't answer the connection request"
+		baseAlertText = String(localized: "\(who.hostname) didn't answer the connection request")
 		showBaseAlert = true
 	}
 

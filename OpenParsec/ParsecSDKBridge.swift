@@ -10,6 +10,28 @@ func appNote(_ text: String) {
 	os_log("%{public}@", log: appLog, text)
 }
 
+// ponytail: probe for the display switch that snaps back on a Mac host. A plain file in Documents (shown in
+// the Files app) so a device test can be lined up with the host's ~/.parsec/log.txt; drop it once that's solved
+private let diagQueue = DispatchQueue(label: "diag")
+func diag(_ text: String) {
+	let line = "[\(ISO8601DateFormatter().string(from: Date()))] \(text)\n"
+	diagQueue.async {
+		guard let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+		let url = dir.appendingPathComponent("diagnostics.log")
+		// keep it small, start over past 256 KB
+		if let size = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? Int, size > 256_000 {
+			try? FileManager.default.removeItem(at: url)
+		}
+		if let handle = try? FileHandle(forWritingTo: url) {
+			handle.seekToEndOfFile()
+			handle.write(Data(line.utf8))
+			try? handle.close()
+		} else {
+			try? Data(line.utf8).write(to: url)
+		}
+	}
+}
+
 enum RendererType: Int {
 	case opengl
     case metal
@@ -125,11 +147,12 @@ class ParsecSDKBridge: ParsecService {
 	}
 
 	func connect(_ peerID: String) -> ParsecStatus {
+		diag("connect")
 
 		var parsecClientCfg = ParsecClientConfig()
 		parsecClientCfg.video.0.decoderIndex = 1
-		// 0x0 keeps the host's display as it is. The host OS isn't known yet and a Mac host would retarget
-		// its display mode to the saved size; other hosts get it from updateHostVideoConfig after the first reply
+		// 0x0 is the host default (keep the display as it is). The host OS isn't known yet; hosts that can
+		// stream at another size get the saved one from updateHostVideoConfig after the first reply
 		parsecClientCfg.video.0.resolutionX = 0
 		parsecClientCfg.video.0.resolutionY = 0
 		parsecClientCfg.video.0.decoderH265 = SettingsHandler.decoder == .h265
@@ -213,6 +236,9 @@ class ParsecSDKBridge: ParsecService {
 
 	func getStatusEx(_ pcs: inout ParsecClientStatus) -> ParsecStatus {
 		let ans = ParsecClientGetStatus(_parsec, &pcs)
+		if Float(pcs.decoder.0.width) != hostWidth || Float(pcs.decoder.0.height) != hostHeight {
+			diag("stream \(pcs.decoder.0.width)x\(pcs.decoder.0.height) status \(ans.rawValue)")
+		}
 		self.hostHeight = Float(pcs.decoder.0.height)
 		self.hostWidth = Float(pcs.decoder.0.width)
 
@@ -310,6 +336,7 @@ class ParsecSDKBridge: ParsecService {
 		if pointer == nil {
 			return
 		}
+		diag("recv \(event.id) \(String(cString: pointer!.assumingMemoryBound(to: CChar.self)))")
 		switch event.id {
 		case 11:
 			do {
@@ -469,7 +496,12 @@ class ParsecSDKBridge: ParsecService {
 		motionMessage.mouseMotion.x = x
 		motionMessage.mouseMotion.y = y
 		ParsecClientSendMessage(_parsec, &motionMessage)
+		if CACurrentMediaTime() - lastMouseDiag > 0.5 {
+			lastMouseDiag = CACurrentMediaTime()
+			diag("mouse \(x),\(y) in \(Int(clientWidth))x\(Int(clientHeight))")
+		}
 	}
+	private var lastMouseDiag: CFTimeInterval = 0
 
 	func sendMouseRelativeMove(_ dx: Int32, _ dy: Int32) {
 		var motionMessage = ParsecMessage()
@@ -653,6 +685,7 @@ class ParsecSDKBridge: ParsecService {
 	}
 
 	func sendUserData(type: ParsecUserDataType, message: Data) {
+		if type != .setVideoConfig { diag("send \(type)") }
         var nullTerminatedMessage = message
         nullTerminatedMessage.append(0)
 		nullTerminatedMessage.withUnsafeBytes { ptr in
@@ -663,8 +696,8 @@ class ParsecSDKBridge: ParsecService {
 
 	func updateHostVideoConfig() {
 		var videoConfig = ParsecUserDataVideoConfig()
-		// a Mac host retargets the display mode to any size sent, so a portrait monitor gets a landscape mode,
-		// fails and the host falls back to the main display. 0x0 is its default: keep the display as it is
+		// a Mac host streams the display at its own size (parsecd has no display-mode API), so send its default 0x0
+		// rather than a size it can't honour
 		let keepMode = DataManager.model.hostOS == macHostOS
 		videoConfig.video[0].resolutionX = keepMode ? 0 : DataManager.model.resolutionX
 		videoConfig.video[0].resolutionY = keepMode ? 0 : DataManager.model.resolutionY
@@ -673,6 +706,7 @@ class ParsecSDKBridge: ParsecService {
 		videoConfig.video[0].output = DataManager.model.output
 		let encoder = JSONEncoder()
 		let data = try! encoder.encode(videoConfig)
+		diag("send setVideoConfig \(String(decoding: data, as: UTF8.self))")
 		CParsec.sendUserData(type: .setVideoConfig, message: data)
 	}
 }

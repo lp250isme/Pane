@@ -230,7 +230,7 @@ struct LoginView: View {
 				isLoading = false
 				if let data = data {
 					guard let statusCode = (response as? HTTPURLResponse)?.statusCode else {
-						alertText = "Bad response from the server"
+						alertText = String(localized: "Bad response from the server")
 						showAlert = true
 						return
 					}
@@ -239,7 +239,7 @@ struct LoginView: View {
 					if statusCode == 201 { // 201 Created
 						// store it and recover it from the next app opening, so people won't swear
 						guard let info: ClientInfo = try? decoder.decode(ClientInfo.self, from: data) else {
-							alertText = "Bad response from the server"
+							alertText = String(localized: "Bad response from the server")
 							showAlert = true
 							return
 						}
@@ -253,7 +253,7 @@ struct LoginView: View {
 						}
 					} else if statusCode >= 400 { // 4XX client errors
 						guard let info: ErrorInfo = try? decoder.decode(ErrorInfo.self, from: data) else {
-							alertText = "Login failed (HTTP \(statusCode))"
+							alertText = String(localized: "Login failed (HTTP \(statusCode))")
 							showAlert = true
 							return
 						}
@@ -265,7 +265,7 @@ struct LoginView: View {
 							if isTFARequired {
 								presentTFAAlert = true
 							} else {
-								alertText = "Error: \(info)"
+								alertText = String(localized: "Error: \(info)")
 								showAlert = true
 							}
 						} else {
@@ -273,11 +273,11 @@ struct LoginView: View {
 							showAlert = true
 						}
 					} else {
-						alertText = "Login failed (HTTP \(statusCode))"
+						alertText = String(localized: "Login failed (HTTP \(statusCode))")
 						showAlert = true
 					}
 				} else {
-					alertText = error?.localizedDescription ?? "Could not reach the server"
+					alertText = error?.localizedDescription ?? String(localized: "Could not reach the server")
 					showAlert = true
 				}
 			}

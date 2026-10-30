@@ -9,7 +9,7 @@ struct SettingsForm: View {
 	@ObservedObject private var settings = SettingsStore.shared
 
 	private let resolutionChoices: [Choice<ParsecResolution>] =
-		ParsecResolution.resolutions.map { Choice($0.desc, $0) }
+		ParsecResolution.resolutions.map { Choice(LocalizedStringKey($0.desc), $0) }
 
 	private let bitrateChoices: [Choice<Int>] =
 		[Choice("Host Default", 0)] + ParsecResolution.bitrates.map { Choice("\($0) Mbps", $0) }
@@ -145,11 +145,11 @@ struct SettingsView: View {
 
 /// A menu-style Picker row: title on the left, current choice on the right.
 private struct MenuPickerRow<Value: Hashable>: View {
-	let title: String
+	let title: LocalizedStringKey
 	@Binding var selection: Value
 	let options: [Choice<Value>]
 
-	init(_ title: String, selection: Binding<Value>, options: [Choice<Value>]) {
+	init(_ title: LocalizedStringKey, selection: Binding<Value>, options: [Choice<Value>]) {
 		self.title = title
 		_selection = selection
 		self.options = options
@@ -180,12 +180,12 @@ private struct MenuPickerRow<Value: Hashable>: View {
 
 /// A Slider row with its title and the current value shown above the track.
 private struct ValueSliderRow: View {
-	let title: String
+	let title: LocalizedStringKey
 	@Binding var value: Double
 	let range: ClosedRange<Double>
 	let step: Double
 
-	init(_ title: String, value: Binding<Double>, in range: ClosedRange<Double>, step: Double) {
+	init(_ title: LocalizedStringKey, value: Binding<Double>, in range: ClosedRange<Double>, step: Double) {
 		self.title = title
 		_value = value
 		self.range = range

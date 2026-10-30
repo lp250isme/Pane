@@ -1,0 +1,1463 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "%@ %@": {
+      "shouldTranslate": false
+    },
+    "%@ didn't answer the connection request": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 沒有回應連線請求"
+          }
+        }
+      }
+    },
+    "%@#%@": {
+      "shouldTranslate": false
+    },
+    "%lld Mbps": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Mbps"
+          }
+        }
+      }
+    },
+    "%lld connected": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 人連線中"
+          }
+        }
+      }
+    },
+    "%lld friend": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 位好友"
+          }
+        }
+      }
+    },
+    "%lld friends": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 位好友"
+          }
+        }
+      }
+    },
+    "%lld host": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 台主機"
+          }
+        }
+      }
+    },
+    "%lld hosts": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 台主機"
+          }
+        }
+      }
+    },
+    "120 FPS": {
+      "shouldTranslate": false
+    },
+    "2FA Code": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "兩步驟驗證碼"
+          }
+        }
+      }
+    },
+    "30 FPS": {
+      "shouldTranslate": false
+    },
+    "60 FPS": {
+      "shouldTranslate": false
+    },
+    "Already streaming in another window": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已在另一個視窗串流中"
+          }
+        }
+      }
+    },
+    "Are you sure you want to logout?": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "確定要登出嗎？"
+          }
+        }
+      }
+    },
+    "Authentication failed": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "驗證失敗"
+          }
+        }
+      }
+    },
+    "Auto": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動"
+          }
+        }
+      }
+    },
+    "Auto (Device Max)": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動（裝置上限）"
+          }
+        }
+      }
+    },
+    "Auto Reconnect": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動重新連線"
+          }
+        }
+      }
+    },
+    "Back": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "返回"
+          }
+        }
+      }
+    },
+    "Bad response from the server": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "伺服器回應異常"
+          }
+        }
+      }
+    },
+    "Bitrate": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "碼率"
+          }
+        }
+      }
+    },
+    "Can't reach Parsec": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法連上 Parsec"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消"
+          }
+        }
+      }
+    },
+    "Client Resolution": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "裝置解析度"
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "關閉"
+          }
+        }
+      }
+    },
+    "Codec": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "編碼格式"
+          }
+        }
+      }
+    },
+    "Computers running Parsec on your account show up here.": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你帳號下執行 Parsec 的電腦會顯示在這裡。"
+          }
+        }
+      }
+    },
+    "Confirm your Parsec account email first": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請先完成 Parsec 帳號的 Email 驗證"
+          }
+        }
+      }
+    },
+    "Connect": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連線"
+          }
+        }
+      }
+    },
+    "Connect to %@": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連線到 %@"
+          }
+        }
+      }
+    },
+    "Connection": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連線"
+          }
+        }
+      }
+    },
+    "Connection canceled": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連線已取消"
+          }
+        }
+      }
+    },
+    "Connection didn't start": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連線沒有啟動"
+          }
+        }
+      }
+    },
+    "Connection lost...": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連線中斷……"
+          }
+        }
+      }
+    },
+    "Connection was interrupted": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連線被中斷"
+          }
+        }
+      }
+    },
+    "Constant Frame Rate": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "固定幀率"
+          }
+        }
+      }
+    },
+    "Copy Name": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拷貝名稱"
+          }
+        }
+      }
+    },
+    "Could not reach the server": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法連上伺服器"
+          }
+        }
+      }
+    },
+    "Couldn't connect (code %d)": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法連線（代碼 %d）"
+          }
+        }
+      }
+    },
+    "Couldn't reach Parsec's network service": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法連上 Parsec 的網路服務"
+          }
+        }
+      }
+    },
+    "Couldn't reach the host": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法連上主機"
+          }
+        }
+      }
+    },
+    "Couldn't refresh hosts (HTTP %lld)": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法重新整理主機（HTTP %lld）"
+          }
+        }
+      }
+    },
+    "Couldn't refresh hosts: %@": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法重新整理主機：%@"
+          }
+        }
+      }
+    },
+    "Couldn't refresh hosts: bad response": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法重新整理主機：回應異常"
+          }
+        }
+      }
+    },
+    "Cursor Size": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "游標大小"
+          }
+        }
+      }
+    },
+    "Direct": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直接觸控"
+          }
+        }
+      }
+    },
+    "Disconnect": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "中斷連線"
+          }
+        }
+      }
+    },
+    "Disconnected (code %d)": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已中斷連線（代碼 %d）"
+          }
+        }
+      }
+    },
+    "Disconnected (reason unknown)": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已中斷連線（原因不明）"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成"
+          }
+        }
+      }
+    },
+    "During a Stream": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "串流時"
+          }
+        }
+      }
+    },
+    "Email": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Email"
+          }
+        }
+      }
+    },
+    "Enter": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "確定"
+          }
+        }
+      }
+    },
+    "Error gathering friends: %@": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取得好友列表時發生錯誤：%@"
+          }
+        }
+      }
+    },
+    "Error gathering user info: %@": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取得使用者資訊時發生錯誤：%@"
+          }
+        }
+      }
+    },
+    "Error: %@": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "錯誤：%@"
+          }
+        }
+      }
+    },
+    "First Finger": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第一指"
+          }
+        }
+      }
+    },
+    "Forget last host": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "忘記上次的主機"
+          }
+        }
+      }
+    },
+    "Frame Rate": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幀率"
+          }
+        }
+      }
+    },
+    "Friends": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "好友"
+          }
+        }
+      }
+    },
+    "H.264": {
+      "shouldTranslate": false
+    },
+    "Hide Buttons": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隱藏按鈕"
+          }
+        }
+      }
+    },
+    "Hide iPad Status Bar": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隱藏 iPad 狀態列"
+          }
+        }
+      }
+    },
+    "Hide iPhone Status Bar": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隱藏 iPhone 狀態列"
+          }
+        }
+      }
+    },
+    "Host Default": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主機預設"
+          }
+        }
+      }
+    },
+    "Host Resolution": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主機解析度"
+          }
+        }
+      }
+    },
+    "Host can't stream at this resolution": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主機無法以此解析度串流"
+          }
+        }
+      }
+    },
+    "Host capture failed": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主機擷取畫面失敗"
+          }
+        }
+      }
+    },
+    "Host declined the connection": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主機拒絕了連線"
+          }
+        }
+      }
+    },
+    "Host didn't approve the connection": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主機沒有核准連線"
+          }
+        }
+      }
+    },
+    "Host dropped the connection": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主機中斷了連線"
+          }
+        }
+      }
+    },
+    "Host ended the connection": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主機結束了連線"
+          }
+        }
+      }
+    },
+    "Host has no display": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主機沒有顯示器"
+          }
+        }
+      }
+    },
+    "Host is full": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主機已滿"
+          }
+        }
+      }
+    },
+    "Host is offline": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主機離線"
+          }
+        }
+      }
+    },
+    "Host is using the machine": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主機正在使用中"
+          }
+        }
+      }
+    },
+    "Host resolution problem": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主機解析度有問題"
+          }
+        }
+      }
+    },
+    "Host shut down": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主機已關閉"
+          }
+        }
+      }
+    },
+    "Hosts": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主機"
+          }
+        }
+      }
+    },
+    "Keyboard": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鍵盤"
+          }
+        }
+      }
+    },
+    "Kicked by the host": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "被主機踢出"
+          }
+        }
+      }
+    },
+    "Last connected": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上次連線"
+          }
+        }
+      }
+    },
+    "Last refreshed at %@": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上次重新整理：%@"
+          }
+        }
+      }
+    },
+    "Left Edge": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "左側邊緣"
+          }
+        }
+      }
+    },
+    "Loading...": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "載入中……"
+          }
+        }
+      }
+    },
+    "Login Failed": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登入失敗"
+          }
+        }
+      }
+    },
+    "Login failed (HTTP %lld)": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登入失敗（HTTP %lld）"
+          }
+        }
+      }
+    },
+    "Logout": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登出"
+          }
+        }
+      }
+    },
+    "Lost the connection to Parsec": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "與 Parsec 的連線中斷"
+          }
+        }
+      }
+    },
+    "Menu": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選單"
+          }
+        }
+      }
+    },
+    "Menu Edge Swipe": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "從邊緣滑出選單"
+          }
+        }
+      }
+    },
+    "Metal": {
+      "shouldTranslate": false
+    },
+    "Middle": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "中間"
+          }
+        }
+      }
+    },
+    "Network not supported": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不支援此網路"
+          }
+        }
+      }
+    },
+    "Network timed out": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "網路逾時"
+          }
+        }
+      }
+    },
+    "No Hosts": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有主機"
+          }
+        }
+      }
+    },
+    "No answer, trying again...": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有回應，再試一次……"
+          }
+        }
+      }
+    },
+    "No network connection": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有網路連線"
+          }
+        }
+      }
+    },
+    "No network path to the host": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有可連到主機的網路路徑"
+          }
+        }
+      }
+    },
+    "No one is signed in on the host": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主機上沒有人登入"
+          }
+        }
+      }
+    },
+    "No permission to connect": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有連線權限"
+          }
+        }
+      }
+    },
+    "Off": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "關閉"
+          }
+        }
+      }
+    },
+    "OpenGL": {
+      "shouldTranslate": false
+    },
+    "Option Key as Command": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Option 鍵當 Command 鍵"
+          }
+        }
+      }
+    },
+    "Pane": {
+      "shouldTranslate": false
+    },
+    "Parsec closed the connection": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parsec 關閉了連線"
+          }
+        }
+      }
+    },
+    "Part of the screen is under the keyboard\nDrag ↕︎ to move it into view": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分畫面被鍵盤擋住\n上下拖曳 ↕︎ 把它移進畫面"
+          }
+        }
+      }
+    },
+    "Password": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密碼"
+          }
+        }
+      }
+    },
+    "Picture in Picture": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "子母畫面"
+          }
+        }
+      }
+    },
+    "Pinch to Zoom": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "雙指縮放"
+          }
+        }
+      }
+    },
+    "Please enter your 2FA code from your authenticator app": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請輸入驗證器 App 裡的兩步驟驗證碼"
+          }
+        }
+      }
+    },
+    "Pointer Speed": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "游標速度"
+          }
+        }
+      }
+    },
+    "Prefer H.265": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "優先使用 H.265"
+          }
+        }
+      }
+    },
+    "Reconnect": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新連線"
+          }
+        }
+      }
+    },
+    "Reconnect on app launch": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開啟 App 時重新連線"
+          }
+        }
+      }
+    },
+    "Reconnecting to %@...": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在重新連線到 %@……"
+          }
+        }
+      }
+    },
+    "Reconnecting...": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新連線中……"
+          }
+        }
+      }
+    },
+    "Refresh": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新整理"
+          }
+        }
+      }
+    },
+    "Refreshing hosts...": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在重新整理主機……"
+          }
+        }
+      }
+    },
+    "Renderer": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "繪圖引擎"
+          }
+        }
+      }
+    },
+    "Requesting connection...": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在請求連線……"
+          }
+        }
+      }
+    },
+    "Resolution": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解析度"
+          }
+        }
+      }
+    },
+    "Retry": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重試"
+          }
+        }
+      }
+    },
+    "Reverse Scrolling": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "反向捲動"
+          }
+        }
+      }
+    },
+    "Right Click": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "右鍵"
+          }
+        }
+      }
+    },
+    "Right Edge": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "右側邊緣"
+          }
+        }
+      }
+    },
+    "Scroll Speed": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "捲動速度"
+          }
+        }
+      }
+    },
+    "Second Finger": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第二指"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定"
+          }
+        }
+      }
+    },
+    "Show Keyboard Button": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顯示鍵盤按鈕"
+          }
+        }
+      }
+    },
+    "Show Menu Button": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顯示選單按鈕"
+          }
+        }
+      }
+    },
+    "Show Reconnect Errors": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顯示重新連線錯誤"
+          }
+        }
+      }
+    },
+    "Show Stats": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顯示連線資訊"
+          }
+        }
+      }
+    },
+    "Show Stream Stats": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顯示串流資訊"
+          }
+        }
+      }
+    },
+    "Sign In": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登入"
+          }
+        }
+      }
+    },
+    "Sign in with your Parsec account": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用你的 Parsec 帳號登入"
+          }
+        }
+      }
+    },
+    "Sound": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聲音"
+          }
+        }
+      }
+    },
+    "Start Muted": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開始時靜音"
+          }
+        }
+      }
+    },
+    "Still connecting to the host": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仍在連線到主機"
+          }
+        }
+      }
+    },
+    "Stream stats": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "串流資訊"
+          }
+        }
+      }
+    },
+    "Switch Display": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切換螢幕"
+          }
+        }
+      }
+    },
+    "Team account deactivated": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "團隊帳號已停用"
+          }
+        }
+      }
+    },
+    "Timed out in the background": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在背景逾時"
+          }
+        }
+      }
+    },
+    "Touch & Mouse": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "觸控與滑鼠"
+          }
+        }
+      }
+    },
+    "Touch Mode": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "觸控模式"
+          }
+        }
+      }
+    },
+    "Touchpad": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "觸控板"
+          }
+        }
+      }
+    },
+    "Two-Factor Authentication": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "兩步驟驗證"
+          }
+        }
+      }
+    },
+    "Video": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "影像"
+          }
+        }
+      }
+    },
+    "Waiting for the host to approve you...": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "等待主機核准……"
+          }
+        }
+      }
+    },
+    "You": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你"
+          }
+        }
+      }
+    },
+    "Your Parsec session expired": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parsec 登入已過期"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

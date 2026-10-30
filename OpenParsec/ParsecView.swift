@@ -186,7 +186,7 @@ struct ParsecView: View {
 	@State var showDCAlert: Bool = false
 	// an alert that arrived while the menu popover was up, raised once the popover has gone
 	@State var pendingDCAlert: Bool = false
-	@State var DCAlertText: String = "Disconnected (reason unknown)"
+	@State var DCAlertText: String = String(localized: "Disconnected (reason unknown)")
 	@State var metricInfo: String = "Loading..."
 
 	@State var hideOverlay: Bool = false
@@ -511,7 +511,7 @@ struct ParsecView: View {
 	@ViewBuilder
 	var overlayMenuContent: some View {
 		Section {
-			// a Mac host can't stream at another size, it retargets the display mode and falls back
+			// a Mac host can't change its display mode (parsecd has no display-mode API), so the choice does nothing there
 			if let os = dataModel.hostOS, os != macHostOS {
 				MenuDrillRow("Resolution", systemImage: "aspectratio", value: resolutionSummary) {
 					menuPage = .resolution
@@ -566,7 +566,7 @@ struct ParsecView: View {
 		}
 		Section {
 			ForEach(ParsecResolution.resolutions, id: \.self) { res in
-				MenuOptionRow(res.desc, checked: res == currentResolution) { changeResolution(res) }
+				MenuOptionRow(LocalizedStringKey(res.desc), checked: res == currentResolution) { changeResolution(res) }
 			}
 		}
 	}
@@ -575,7 +575,7 @@ struct ParsecView: View {
 		ParsecResolution.resolutions.first { $0.width == dataModel.resolutionX && $0.height == dataModel.resolutionY }
 	}
 
-	var resolutionSummary: String { currentResolution?.desc ?? "" }
+	var resolutionSummary: String { currentResolution.map { String(localized: String.LocalizationValue($0.desc)) } ?? "" }
 
 	@ViewBuilder
 	var bitratePage: some View {
@@ -610,12 +610,12 @@ struct ParsecView: View {
 	}
 
 	var bitrateSummary: String {
-		if bitrateIsHostDefault { return "Host Default" }
-		return dataModel.bitrate > 0 ? "\(dataModel.bitrate) Mbps" : ""
+		if bitrateIsHostDefault { return String(localized: "Host Default") }
+		return dataModel.bitrate > 0 ? String(localized: "\(dataModel.bitrate) Mbps") : ""
 	}
 
 	var displaySummary: String {
-		if dataModel.output == "none" { return "Auto" }
+		if dataModel.output == "none" { return String(localized: "Auto") }
 		return dataModel.displayConfigs.first { $0.id == dataModel.output }.map { "\($0.name) \($0.adapterName)" } ?? ""
 	}
 
@@ -760,7 +760,7 @@ struct ParsecView: View {
 		parsecViewController.onKeyboardCoversPicture = {
 			guard !panHintShown.wrappedValue else { return }
 			panHintShown.wrappedValue = true
-			withAnimation { hint.wrappedValue = "Part of the screen is under the keyboard\nDrag ↕\u{FE0E} to move it into view" }
+			withAnimation { hint.wrappedValue = String(localized: "Part of the screen is under the keyboard\nDrag ↕\u{FE0E} to move it into view") }
 			DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
 				withAnimation { hint.wrappedValue = nil }
 			}
@@ -901,6 +901,7 @@ struct ParsecView: View {
 	}
 
 	func changeDisplay(displayId: String) {
+		diag("pick display \(displayId)")
 		DispatchQueue.main.async {
 			DataManager.model.output = displayId
 			DataManager.model.localChangeAt = Date()
@@ -996,12 +997,12 @@ private enum StreamChrome {
 
 /// A stream menu row that opens a page of options, plain buttons only (menus never got the tap here)
 private struct MenuDrillRow: View {
-	let title: String
+	let title: LocalizedStringKey
 	let systemImage: String
 	let value: String
 	let action: () -> Void
 
-	init(_ title: String, systemImage: String, value: String, action: @escaping () -> Void) {
+	init(_ title: LocalizedStringKey, systemImage: String, value: String, action: @escaping () -> Void) {
 		self.title = title
 		self.systemImage = systemImage
 		self.value = value
@@ -1032,7 +1033,7 @@ private struct MenuDrillRow: View {
 
 /// The way back from an options page to the main stream menu
 private struct MenuBackRow: View {
-	let title: String
+	let title: LocalizedStringKey
 	let action: () -> Void
 
 	var body: some View {
@@ -1054,13 +1055,13 @@ private struct MenuBackRow: View {
 
 /// One choice on an options page, the current one carries a checkmark
 private struct MenuOptionRow: View {
-	let title: String
+	let title: LocalizedStringKey
 	let checked: Bool
 	let action: () -> Void
 
 	@Environment(\.isEnabled) private var isEnabled
 
-	init(_ title: String, checked: Bool, action: @escaping () -> Void) {
+	init(_ title: LocalizedStringKey, checked: Bool, action: @escaping () -> Void) {
 		self.title = title
 		self.checked = checked
 		self.action = action

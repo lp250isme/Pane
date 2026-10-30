@@ -6,10 +6,10 @@ import SwiftUI
  * Used to depict a single choice with a given label and value.
  */
 struct Choice<T: Hashable> {
-	var label: String
+	var label: LocalizedStringKey
 	var value: T
 
-	init(_ label: String, _ value: T) {
+	init(_ label: LocalizedStringKey, _ value: T) {
 		self.label = label
 		self.value = value
 	}
