@@ -954,7 +954,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		if SettingsHandler.cursorMode == .direct {
 			if let t = activeTouches.first {
 				cursorContentPos = clampToContent(contentView.convert(t.location(in: view), from: view))
-				CParsec.sendMousePosition(Int32(cursorContentPos.x), Int32(cursorContentPos.y))
+				CParsec.sendMousePosition(hostInt(cursorContentPos.x), hostInt(cursorContentPos.y))
 				positionCursorOverlay()
 			}
 			// the press waits a beat: a second finger landing in that time makes this a two-finger
@@ -1028,7 +1028,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		if CParsec.mouseInfo.mousePositionRelative {
 			// Host has captured the pointer (e.g. a game): send true relative motion instead.
 			let s = CGFloat(mouseSensitivity) / zoom
-			CParsec.sendMouseDelta(Int32((loc.x - prev.x) * s), Int32((loc.y - prev.y) * s))
+			CParsec.sendMouseDelta(hostInt((loc.x - prev.x) * s), hostInt((loc.y - prev.y) * s))
 			return
 		}
 
@@ -1036,7 +1036,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 			cursorContentPos = clampToContent(contentView.convert(loc, from: view))
 			// a real drag can't wait for the held-back press
 			if directClick.pending && cursorDidMoveThisTouch {
-				CParsec.sendMousePosition(Int32(cursorContentPos.x), Int32(cursorContentPos.y))
+				CParsec.sendMousePosition(hostInt(cursorContentPos.x), hostInt(cursorContentPos.y))
 				sendDirectPress()
 			}
 		} else {
@@ -1057,7 +1057,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		}
 		// Command the host to the ABSOLUTE predicted position (not a delta) so the host cursor can't
 		// crawl behind network round-trips - clicks always land where the cursor is drawn.
-		CParsec.sendMousePosition(Int32(cursorContentPos.x), Int32(cursorContentPos.y))
+		CParsec.sendMousePosition(hostInt(cursorContentPos.x), hostInt(cursorContentPos.y))
 		if SettingsHandler.cursorMode == .direct {
 			edgeScrollPoint = loc
 			if cursorDidMoveThisTouch && edgeScrollVelocity(at: loc) != .zero {
@@ -1103,14 +1103,14 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		let direction: Float = SettingsHandler.reverseScrollDirection ? -1.0 : 1.0
 		let contribution = Float(delta.y) * scrollWheelSpeed * direction
 		accumulatedScrollY += contribution
-		let intScrollY = Int32(accumulatedScrollY)
+		let intScrollY = hostInt(accumulatedScrollY)
 		if intScrollY != 0 {
 			CParsec.sendWheelMsg(x: 0, y: intScrollY)
 			accumulatedScrollY -= Float(intScrollY)
 		}
 		// sideways: fingers moving right bring in what's on the left
 		accumulatedScrollX -= Float(delta.x) * scrollWheelSpeed * direction
-		let intScrollX = Int32(accumulatedScrollX)
+		let intScrollX = hostInt(accumulatedScrollX)
 		if intScrollX != 0 {
 			CParsec.sendWheelMsg(x: intScrollX, y: 0)
 			accumulatedScrollX -= Float(intScrollX)
@@ -1174,7 +1174,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 			cursorContentPos = clampToContent(CGPoint(x: cursorContentPos.x + cursorVelocity.x * dt,
 													  y: cursorContentPos.y + cursorVelocity.y * dt))
 			if !CParsec.mouseInfo.mousePositionRelative {
-				CParsec.sendMousePosition(Int32(cursorContentPos.x), Int32(cursorContentPos.y))
+				CParsec.sendMousePosition(hostInt(cursorContentPos.x), hostInt(cursorContentPos.y))
 			}
 			centerViewportOnCursorPos()
 			positionCursorOverlay()
@@ -1189,7 +1189,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		if scrollMomentumActive {
 			scrollVelocity *= Float(pow(scrollDecayPerSec, Double(dt)))
 			accumulatedScrollY += scrollVelocity * Float(dt)
-			let i = Int32(accumulatedScrollY)
+			let i = hostInt(accumulatedScrollY)
 			if i != 0 {
 				CParsec.sendWheelMsg(x: 0, y: i)
 				accumulatedScrollY -= Float(i)
@@ -1243,7 +1243,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		let centerY = ((scrollView.bounds.height - bottomInset) / 2 + scrollView.contentOffset.y) / newZoom
 		cursorContentPos = clampToContent(CGPoint(x: centerX, y: centerY))
 		if !CParsec.mouseInfo.mousePositionRelative {
-			CParsec.sendMousePosition(Int32(cursorContentPos.x), Int32(cursorContentPos.y))
+			CParsec.sendMousePosition(hostInt(cursorContentPos.x), hostInt(cursorContentPos.y))
 		}
 		positionCursorOverlay()
 	}
@@ -1414,7 +1414,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		guard next != off else { return false }
 		scrollView.setContentOffset(next, animated: false)
 		cursorContentPos = clampToContent(contentView.convert(edgeScrollPoint, from: view))
-		CParsec.sendMousePosition(Int32(cursorContentPos.x), Int32(cursorContentPos.y))
+		CParsec.sendMousePosition(hostInt(cursorContentPos.x), hostInt(cursorContentPos.y))
 		positionCursorOverlay()
 		return true
 	}
@@ -1845,7 +1845,7 @@ extension ParsecViewController: TrackpadDelegate {
 		let s = CGFloat(mouseSensitivity) / zoom
 		if CParsec.mouseInfo.mousePositionRelative {
 			// the host captured the pointer (a game): true relative motion
-			CParsec.sendMouseDelta(Int32(delta.x * CGFloat(mouseSensitivity)), Int32(delta.y * CGFloat(mouseSensitivity)))
+			CParsec.sendMouseDelta(hostInt(delta.x * CGFloat(mouseSensitivity)), hostInt(delta.y * CGFloat(mouseSensitivity)))
 			return
 		}
 		let dcx = delta.x * s, dcy = delta.y * s
@@ -1856,7 +1856,7 @@ extension ParsecViewController: TrackpadDelegate {
 			cursorVelocity = CGPoint(x: cursorVelocity.x * 0.4 + (dcx / dt) * 0.6, y: cursorVelocity.y * 0.4 + (dcy / dt) * 0.6)
 		}
 		lastCursorMoveTime = now
-		CParsec.sendMousePosition(Int32(cursorContentPos.x), Int32(cursorContentPos.y))
+		CParsec.sendMousePosition(hostInt(cursorContentPos.x), hostInt(cursorContentPos.y))
 		centerViewportOnCursorPos()
 		positionCursorOverlay()
 	}
@@ -1928,7 +1928,7 @@ extension ParsecViewController: TrackpadDelegate {
 		let title = Self.gestureTitle(gesture, mac: hostOS == macHostOS)
 		trackpad.showHUD(title: title.text, symbol: title.symbol)
 		let keys = trackpadKeys(gesture, hostOS: hostOS)
-		appNote("[trackpad] \(gesture) -> \(keys)")
+		diag("trackpad \(gesture) -> \(keys)")
 		for key in keys { CParsec.sendKeyboardMessage(keyCode: key, pressed: true) }
 		for key in keys.reversed() { CParsec.sendKeyboardMessage(keyCode: key, pressed: false) }
 	}

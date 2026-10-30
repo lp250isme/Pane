@@ -32,6 +32,36 @@ func diag(_ text: String) {
 	}
 }
 
+// ponytail: last words in diagnostics.log, so a crash met away from the Mac can be sent from the Files app.
+// Not async-signal-safe; good enough for a probe, drop with diag()
+private func writeCrash(_ text: String) {
+	guard let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+	let url = dir.appendingPathComponent("diagnostics.log")
+	let line = Data("[\(ISO8601DateFormatter().string(from: Date()))] CRASH \(text)\n".utf8)
+	if let handle = try? FileHandle(forWritingTo: url) {
+		handle.seekToEndOfFile()
+		handle.write(line)
+		try? handle.close()
+	} else {
+		try? line.write(to: url)
+	}
+}
+
+func installCrashLog() {
+	NSSetUncaughtExceptionHandler { e in
+		writeCrash("exception \(e.name.rawValue): \(e.reason ?? "")\n\(e.callStackSymbols.joined(separator: "\n"))")
+	}
+	for sig in [SIGSEGV, SIGBUS, SIGILL, SIGTRAP, SIGABRT, SIGFPE] {
+		signal(sig) { s in
+			// writing allocates; if the crash came from inside malloc that could hang, so a timer ends it anyway
+			alarm(2)
+			writeCrash("signal \(s)\n\(Thread.callStackSymbols.joined(separator: "\n"))")
+			signal(s, SIG_DFL)
+			raise(s)
+		}
+	}
+}
+
 enum RendererType: Int {
 	case opengl
     case metal
@@ -394,7 +424,11 @@ class ParsecSDKBridge: ParsecService {
 			// marked seen only once an image was had, or a first event without one never fetches it
 			if let pointer = ParsecGetBuffer(_parsec, event.key) {
 				sawCursor = true
-				let provider = CGDataProvider(data: NSData(bytes: pointer, length: Int(cursor.size)))
+				// a buffer shorter than width x height x 4 would be read past its end when drawn
+				let w = Int(cursor.width), h = Int(cursor.height)
+				let fits = w > 0 && h > 0 && w <= 1024 && h <= 1024 && Int(cursor.size) >= w * h * 4
+				if !fits { diag("cursor skipped \(w)x\(h) size \(cursor.size)") }
+				let provider = fits ? CGDataProvider(data: NSData(bytes: pointer, length: Int(cursor.size))) : nil
 				image = provider.flatMap { CGImage(width: Int(cursor.width), height: Int(cursor.height), bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: Int(cursor.width) * 4, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue), provider: $0, decode: nil, shouldInterpolate: true, intent: .defaultIntent) }
 				ParsecFree(pointer)
 			}

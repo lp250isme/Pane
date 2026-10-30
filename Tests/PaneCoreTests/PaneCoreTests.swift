@@ -190,3 +190,15 @@ import Testing
 		#expect(trackpadSwipeFingers(threeFingerDrag: true) == 4)
 	}
 }
+
+@Suite struct HostIntTests {
+	// Int32(_:) traps on these; a crash mid-gesture must not come from a bad number
+	@Test func 壞數字不會當掉() {
+		#expect(hostInt(CGFloat.nan) == 0)
+		#expect(hostInt(CGFloat.infinity) == 0)
+		#expect(hostInt(CGFloat(1e12)) == .max)
+		#expect(hostInt(Float(-1e12)) == .min)
+		#expect(hostInt(Float(Int32.max)) == .max)
+		#expect(hostInt(CGFloat(-12.7)) == -12)
+	}
+}

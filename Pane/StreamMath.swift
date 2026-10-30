@@ -139,3 +139,12 @@ func pictureAboveTrackpad(in bounds: CGRect, topInset: CGFloat, host: CGSize, mi
 	guard bounds.height - topInset - height >= minTrackpad else { return nil }
 	return CGRect(x: bounds.minX, y: bounds.minY + topInset, width: bounds.width, height: height)
 }
+
+/// A float as the Int32 the SDK takes. Int32(_:) traps on NaN, infinity or out of range, which a bad size
+/// (a host reporting 0x0 mid-change) or a runaway glide can produce
+func hostInt<F: BinaryFloatingPoint>(_ v: F) -> Int32 {
+	guard v.isFinite else { return 0 }
+	if v >= F(Int32.max) { return .max }
+	if v <= F(Int32.min) { return .min }
+	return Int32(v)
+}

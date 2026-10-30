@@ -107,14 +107,14 @@ class GamepadController {
 			}
 			mouse.mouseInput?.mouseMovedHandler={(_: GCMouseInput, v: Float, v2: Float) in
 				guard ParsecBackgroundManager.shared.hasActiveConnection else { return }
-				CParsec.sendMouseDelta(Int32(v/1.25 * Float(SettingsHandler.mouseSensitivity)), Int32(-v2/1.25 * Float(SettingsHandler.mouseSensitivity)))
+				CParsec.sendMouseDelta(hostInt(v/1.25 * Float(SettingsHandler.mouseSensitivity)), hostInt(-v2/1.25 * Float(SettingsHandler.mouseSensitivity)))
 				}
 			// the wheel's yAxis is vertical and xAxis horizontal with its sign flipped (as moonlight-ios maps them);
 			// they used to be crossed, so a mouse wheel scrolled the host sideways
 			var accumulatedScrollY: Float = 0
 			mouse.mouseInput?.scroll.yAxis.valueChangedHandler = {(_: GCControllerAxisInput, value: Float) in
 				accumulatedScrollY += value
-				let wheelY = Int32(accumulatedScrollY)
+				let wheelY = hostInt(accumulatedScrollY)
 				accumulatedScrollY -= Float(wheelY)
 				if wheelY != 0 {
 					CParsec.sendWheelMsg(x: 0, y: wheelY)
@@ -123,7 +123,7 @@ class GamepadController {
 			var accumulatedScrollX: Float = 0
 			mouse.mouseInput?.scroll.xAxis.valueChangedHandler = {(_: GCControllerAxisInput, value: Float) in
 				accumulatedScrollX += value
-				let wheelX = Int32(accumulatedScrollX)
+				let wheelX = hostInt(accumulatedScrollX)
 				accumulatedScrollX -= Float(wheelX)
 				if wheelX != 0 {
 					CParsec.sendWheelMsg(x: -wheelX, y: 0)
