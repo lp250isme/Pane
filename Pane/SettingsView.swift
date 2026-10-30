@@ -16,7 +16,7 @@ struct SettingsForm: View {
 
 	var body: some View {
 		Form {
-			Section(header: Text("Touch & Mouse")) {
+			Section {
 				MenuPickerRow("Touch Mode", selection: $settings.cursorMode, options: [
 					Choice("Touchpad", CursorMode.touchpad),
 					Choice("Direct", CursorMode.direct)
@@ -32,6 +32,12 @@ struct SettingsForm: View {
 				Toggle("Reverse Scrolling", isOn: $settings.reverseScrollDirection)
 				Toggle("Pinch to Zoom", isOn: $settings.zoomEnabled)
 				Toggle("Trackpad Below the Picture", isOn: $settings.trackpadBelowPicture)
+				Toggle("Three Finger Drag", isOn: $settings.threeFingerDrag)
+			} header: {
+				Text("Touch & Mouse")
+			} footer: {
+				// the host's own Accessibility setting can't be read, so this one is set to match it by hand
+				Text("Matches the Mac's Accessibility > Pointer Control > Trackpad Options > Dragging Style, which Pane can't read: set both the same. Three fingers drag, and swiping between desktops and Mission Control move to four fingers.")
 			}
 
 			Section(header: Text("Keyboard")) {

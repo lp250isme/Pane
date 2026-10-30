@@ -831,6 +831,17 @@
         }
       }
     },
+    "Matches the Mac's Accessibility > Pointer Control > Trackpad Options > Dragging Style, which Pane can't read: set both the same. Three fingers drag, and swiping between desktops and Mission Control move to four fingers.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "跟 Mac「輔助使用 > 指標控制 > 觸控式軌跡板選項 > 拖移方式」一樣，Pane 讀不到 Mac 的設定，請照 Mac 那邊手動開關。打開後三指移動就是拖曳，切換桌面和指揮中心改用四指。"
+          }
+        }
+      }
+    },
     "Loading...": {
       "localizations": {
         "zh-Hant": {
@@ -1050,6 +1061,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "關閉"
+          }
+        }
+      }
+    },
+    "One finger to move, tap to click\nTwo fingers to scroll or right click\nThree fingers to drag, four to swipe between desktops": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "單指移動，點一下按左鍵\n雙指捲動或按右鍵\n三指拖曳，四指滑動切換桌面"
           }
         }
       }
@@ -1529,6 +1551,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "團隊帳號已停用"
+          }
+        }
+      }
+    },
+    "Three Finger Drag": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "三指拖移"
           }
         }
       }

@@ -65,7 +65,7 @@ struct DirectClick {
 
 /// USB HID codes, which is what ParsecKeycode uses
 enum HIDKey {
-	static let d: UInt32 = 7, tab: UInt32 = 43, space: UInt32 = 44, f11: UInt32 = 68
+	static let d: UInt32 = 7, h: UInt32 = 11, three: UInt32 = 32, four: UInt32 = 33, tab: UInt32 = 43, space: UInt32 = 44, f11: UInt32 = 68
 	static let right: UInt32 = 79, left: UInt32 = 80, down: UInt32 = 81, up: UInt32 = 82
 	static let ctrl: UInt32 = 224, shift: UInt32 = 225, alt: UInt32 = 226, gui: UInt32 = 227
 }
@@ -95,6 +95,9 @@ func trackpadSwipe(_ translation: CGVector, threshold: CGFloat) -> TrackpadGestu
 	if abs(dx) > abs(dy) { return dx < 0 ? .swipeLeft : .swipeRight }
 	return dy < 0 ? .swipeUp : .swipeDown
 }
+
+/// How many fingers swipe between desktops: three-finger drag takes three, so swipes move to four, as on a Mac
+func trackpadSwipeFingers(threeFingerDrag: Bool) -> Int { threeFingerDrag ? 4 : 3 }
 
 /// Four fingers closing or opening, judged by how far apart they ended up against how they started
 func trackpadPinch(spreadRatio: CGFloat) -> TrackpadGesture? {

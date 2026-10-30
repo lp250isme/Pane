@@ -53,9 +53,11 @@ In portrait, and on the lower half of a half-folded iPhone Duo, the picture sits
 | Four finger spread | Show Desktop |
 | Four finger pinch | Spotlight (Windows: Start) |
 
+**Three Finger Drag** (Settings, off by default) matches the Mac's Accessibility > Pointer Control > Trackpad Options > Dragging Style. Pane can't read that setting from the Mac, so set both the same. When it's on, three fingers hold the left button and drag, and the swipes above move to four fingers.
+
 A toolbar under the trackpad holds the stream menu, Mission Control, Show Desktop and the keyboard, so nothing covers the picture. Fingers show as soft lights on the glass and each multi-finger gesture briefly names what it did.
 
-With the keyboard up, the iPhone keyboard takes the lower part and a row of Mac keys sits above it: Esc, ⌃, ⌥, ⌘, ⇧, Tab, F1 to F12, the arrows and Delete. A modifier stays down until the next key. Half open, the keys move into the keyboard's own top bar on the lower half when the system shows one; otherwise they stay above the keyboard. Turn the trackpad off in Settings > Trackpad Below the Picture.
+With the keyboard up, the iPhone keyboard takes the lower part and a row of Mac keys sits above it: Esc, ⌃, ⌥, ⌘, ⇧, Tab, F1 to F12, the arrows and Delete, plus ⌘Tab, ⌘Space, ⌘H, ⌘⇧3 and ⌘⇧4, which iPadOS keeps for itself when typed on a hardware keyboard. A modifier stays down until the next key. Half open, the keys move into the keyboard's own top bar on the lower half when the system shows one; otherwise they stay above the keyboard. Turn the trackpad off in Settings > Trackpad Below the Picture.
 
 **Mac hosts**
 A Mac host streams each monitor at its own resolution, so Pane hides the resolution choice and always asks for the host's own size. Switching to a second monitor on a Mac host is still being worked on: on some setups the host goes back to the main monitor a few seconds later.
@@ -91,7 +93,7 @@ The bundle id is the same as OpenParsec's, so Pane installs over an existing Ope
 | Three finger tap | Show or hide the keyboard | Same |
 
 - The on-screen keyboard has an extra row of Mac keys: Esc, ⌃, ⌥, ⌘, ⇧, Tab, F1 to F12, the arrows and Delete. When the keyboard covers part of the picture, drag the handle to move the picture into view.
-- **Mouse and keyboard**: USB mice and keyboards work. Option can be mapped to Command (Settings > Option Key as Command).
+- **Mouse and keyboard**: USB and Bluetooth mice and keyboards work, Magic Keyboard included. A hardware keyboard types to the host as soon as it's attached; the keyboard button then brings up only the Mac key row. With a mouse or trackpad attached, the trackpad below the picture steps aside and the picture fills the screen. Option can be mapped to Command (Settings > Option Key as Command).
 - **Game controllers**: press any trigger while streaming and Parsec picks up the controller. Set up the host first, for example by installing its virtual USB driver.
 - **Picture in Picture** keeps the stream in a floating window when you leave the app (Settings > Picture in Picture).
 - **Auto Reconnect** quietly reconnects after a short network drop.
@@ -192,9 +194,11 @@ Pane 是 kv 開發的開源 iOS / iPadOS [Parsec](https://parsec.app) 用戶端�
 | 四指張開 | 顯示桌面 |
 | 四指捏合 | Spotlight（Windows：開始功能表） |
 
+**三指拖移**（設定裡，預設關閉）對應 Mac「輔助使用 > 指標控制 > 觸控式軌跡板選項 > 拖移方式」。Pane 讀不到 Mac 的設定，請兩邊設成一樣。打開後，三指移動就是按住左鍵拖曳，上面那些滑動手勢改用四指。
+
 觸控板下方的工具列放著串流選單、指揮中心、顯示桌面和鍵盤，畫面上不會有任何按鈕。手指在玻璃上會顯示淡淡的光點，多指手勢觸發時會短暫顯示它做了什麼。
 
-叫出鍵盤時，下方換成 iPhone 鍵盤，上面多一排 Mac 按鍵：Esc、⌃、⌥、⌘、⇧、Tab、F1 到 F12、方向鍵和 Delete。修飾鍵會按住，直到按下一個鍵。半摺時，系統有顯示鍵盤頂端的工具列，按鍵就會移進那裡，留在下半部；沒有的話就留在鍵盤上方。可以在「設定 > 畫面下方當觸控板」關閉。
+叫出鍵盤時，下方換成 iPhone 鍵盤，上面多一排 Mac 按鍵：Esc、⌃、⌥、⌘、⇧、Tab、F1 到 F12、方向鍵和 Delete，另外還有 ⌘Tab、⌘Space、⌘H、⌘⇧3、⌘⇧4。這幾組用實體鍵盤按會被 iPadOS 攔走，所以放成按鈕。修飾鍵會按住，直到按下一個鍵。半摺時，系統有顯示鍵盤頂端的工具列，按鍵就會移進那裡，留在下半部；沒有的話就留在鍵盤上方。可以在「設定 > 畫面下方當觸控板」關閉。
 
 **Mac 主機**
 Mac 主機會以每個螢幕本身的解析度串流，所以 Pane 會隱藏解析度選項，一律使用主機本身的尺寸。在 Mac 主機上切換到第二個螢幕的功能仍在處理中：某些環境下，主機會在幾秒後退回主螢幕。
@@ -230,7 +234,7 @@ Bundle ID 跟 OpenParsec 相同，所以 Pane 會直接覆蓋已安裝的 OpenPa
 | 三指點一下 | 叫出或收起鍵盤 | 同左 |
 
 - 螢幕鍵盤上方多一排 Mac 按鍵：Esc、⌃、⌥、⌘、⇧、Tab、F1 到 F12、方向鍵和 Delete。鍵盤擋住部分畫面時，拖曳把手就能把畫面移進來。
-- **滑鼠與鍵盤**：支援 USB 滑鼠與鍵盤。Option 鍵可以當成 Command 鍵用（設定 > Option 鍵當 Command 鍵）。
+- **滑鼠與鍵盤**：支援 USB 和藍牙的滑鼠與鍵盤，包括 Magic Keyboard。接上實體鍵盤就能直接打字到主機，這時按鍵盤鈕只會叫出 Mac 按鍵列。接了滑鼠或觸控式軌跡板時，畫面下方的觸控板會收起，畫面改成滿版。Option 鍵可以當成 Command 鍵用（設定 > Option 鍵當 Command 鍵）。
 - **遊戲手把**：串流時按任一板機鍵，Parsec 就會抓到手把。使用前要先把主機端設好，例如安裝虛擬 USB 驅動。
 - **子母畫面**：離開 App 時串流會縮成浮動視窗（設定 > 子母畫面）。
 - **自動重新連線**：網路短暫斷線後會自動接回。

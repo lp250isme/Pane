@@ -2,6 +2,7 @@ import Foundation
 import UIKit
 import ParsecSDK
 import QuartzCore
+import GameController
 import os
 
 protocol ParsecPlayground {
@@ -371,6 +372,14 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 			object: nil
 		)
 
+		for name in [Notification.Name.GCKeyboardDidConnect, .GCKeyboardDidDisconnect] {
+			NotificationCenter.default.addObserver(self, selector: #selector(hardwareKeyboardChanged), name: name, object: nil)
+		}
+		// a mouse or trackpad (Magic Keyboard) takes over from the trackpad below the picture
+		for name in [Notification.Name.GCMouseDidConnect, .GCMouseDidDisconnect] {
+			NotificationCenter.default.addObserver(self, selector: #selector(mouseChanged), name: name, object: nil)
+		}
+
 		// Backgrounding / Control Center / system alerts can orphan touches; flush on resign.
 		NotificationCenter.default.addObserver(
 			self,
@@ -458,7 +467,8 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 		}
 		// ponytail: a vertical fold (book posture) keeps the stream across both halves
 		let host = CGSize(width: CGFloat(CParsec.hostWidth), height: CGFloat(CParsec.hostHeight))
-		if SettingsHandler.trackpadBelowPicture,
+		// ponytail: the half fold keeps its pad with a mouse attached, its lower half would sit empty
+		if SettingsHandler.trackpadBelowPicture, GCMouse.mice().isEmpty,
 		   let picture = pictureAboveTrackpad(in: b, topInset: view.safeAreaInsets.top, host: host, minTrackpad: 120) {
 			return (picture, CGRect(x: 0, y: picture.maxY, width: b.width, height: padBottom - picture.maxY))
 		}
@@ -484,7 +494,7 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 			parent.setChildForHomeIndicatorAutoHidden(self)
 			parent.setChildViewControllerForPointerLock(self)
 		}
-		if keyboardVisible {
+		if keyboardVisible || GCKeyboard.coalesced != nil {
 			becomeFirstResponder()
 		}
 		// (Pinch-to-zoom is driven manually via touchOverlay; the scroll view's pinch stays off.)
@@ -618,9 +628,27 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 		}
 	}
 
+	// A hardware keyboard types straight to the host: the view takes key presses as soon as one is
+	// attached, without raising the key row. Unplugged, it lets go, or the on-screen keyboard would pop up.
+	@objc func hardwareKeyboardChanged() {
+		guard !keyboardVisible, view.window != nil else { return }
+		if GCKeyboard.coalesced != nil {
+			// the half fold's shortcut-bar keys would come back with it
+			configureKeyPlacement()
+			becomeFirstResponder()
+		} else {
+			resignFirstResponder()
+		}
+	}
+
+	@objc func mouseChanged() {
+		view.setNeedsLayout()
+	}
+
 	@objc func keyboardWillShow(notification: NSNotification) {
 		// keyboard notifications are app wide; another window's text field is not ours
-		guard isFirstResponder else { return }
+		// first responder only for a hardware keyboard: whatever iPadOS shows there isn't our keyboard
+		guard isFirstResponder, keyboardVisible else { return }
 		checkShortcutBar()
 		if let keyboardFrame = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
 			let keyboardFrameInView = view.convert(keyboardFrame, from: nil)
@@ -1426,6 +1454,8 @@ extension ParsecViewController: UIPointerInteractionDelegate {
 class KeyboardButton: UIButton {
 	let keyText: String
 	let isToggleable: Bool
+	/// a shortcut sent as one press, for the ones iPadOS keeps for itself (⌘Tab, ⌘Space, ⌘H, screenshots)
+	var combo: [UInt32] = []
 	var isOn = false { didSet { restyle() } }
 	override var isHighlighted: Bool { didSet { restyle() } }
 
@@ -1509,12 +1539,19 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 	// Mac order: esc and the modifiers, the function row, then the arrows and delete
 	private func makeKeyGroups() -> [[KeyboardButton]] {
 		let key = createKeyboardButton
+		func combo(_ label: String, _ keys: [UInt32]) -> KeyboardButton {
+			let button = key(label, "", false)
+			button.combo = keys
+			return button
+		}
 		return [
 			[key("esc", "UIKeyInputEscape", false), key("⌃", "CONTROL", true), key("⌥", "LALT", true),
 			 key("⌘", "LGUI", true), key("⇧", "SHIFT", true), key("⇥", "TAB", false)],
 			(1...12).map { key("F\($0)", "F\($0)", false) },
 			[key("←", "LEFT", false), key("↓", "DOWN", false), key("↑", "UP", false), key("→", "RIGHT", false),
 			 key("⌦", "DELETE", false)],
+			[combo("⌘⇥", [HIDKey.gui, HIDKey.tab]), combo("⌘␣", [HIDKey.gui, HIDKey.space]), combo("⌘H", [HIDKey.gui, HIDKey.h]),
+			 combo("⌘⇧3", [HIDKey.gui, HIDKey.shift, HIDKey.three]), combo("⌘⇧4", [HIDKey.gui, HIDKey.shift, HIDKey.four])],
 		]
 	}
 
@@ -1525,7 +1562,7 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 		let folded = halfFold() != nil
 		// a later fold gets a fresh look, the bar may show this time
 		if !folded { shortcutBarShown = nil }
-		let inBar = folded && shortcutBarShown != false
+		let inBar = keyboardVisible && folded && shortcutBarShown != false
 		guard inBar != keysInShortcutBar else { return }
 		// let go of a latched modifier before its key goes away
 		clearToolbarModifiers(sendToHost: true)
@@ -1546,7 +1583,7 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 		}
 		let done = UIBarButtonItem(image: UIImage(systemName: "keyboard.chevron.compact.down"), style: .plain, target: self, action: #selector(doneTapped))
 		item.leadingBarButtonGroups = [group(groups[0])]
-		item.trailingBarButtonGroups = [group(groups[1], collapsed: "fn"), group(groups[2], collapsed: "←→"),
+		item.trailingBarButtonGroups = [group(groups[1], collapsed: "fn"), group(groups[2], collapsed: "←→"), group(groups[3], collapsed: "⌘"),
 										UIBarButtonItemGroup(barButtonItems: [done], representativeItem: nil)]
 	}
 
@@ -1565,7 +1602,8 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 
     // copied from moonlight https://github.com/moonlight-stream/moonlight-ios/blob/022352c1667788d8626b659d984a290aa5c25e17/Limelight/Input/StreamView.m#L393
 	override var inputAccessoryView: UIView? {
-		if keysInShortcutBar { return nil }
+		// a hardware keyboard alone gets no key row; the keyboard button brings it up
+		if !keyboardVisible || keysInShortcutBar { return nil }
 		if let keyboardAccessoriesView {
 			return keyboardAccessoriesView
 		}
@@ -1681,6 +1719,12 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 	}
 
 	@objc func toolbarButtonClicked(_ sender: KeyboardButton) {
+		if !sender.combo.isEmpty {
+			for key in sender.combo { CParsec.sendKeyboardMessage(keyCode: key, pressed: true) }
+			for key in sender.combo.reversed() { CParsec.sendKeyboardMessage(keyCode: key, pressed: false) }
+			clearToolbarModifiers(sendToHost: true)
+			return
+		}
 		let isToggleable = sender.isToggleable
 		var isOn = sender.isOn
 
@@ -1705,8 +1749,7 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 	}
 
 	@objc func doneTapped() {
-		// Resign first responder to dismiss the keyboard
-		resignFirstResponder()
+		setKeyboardVisible(false)
 	}
 
 	// CRITICAL: This is the robust way to show the keyboard.
@@ -1718,9 +1761,13 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 		if visible {
 			keyboardVisible = true
             DispatchQueue.main.async {
+                // hidden again before this ran: raising it now would leave a keyboard nobody tracks
+                guard self.keyboardVisible else { return }
                 self.configureKeyPlacement()
                 self.reloadInputViews()
                 let success = self.becomeFirstResponder()
+                // already first responder for a hardware keyboard, the key row may come up without a show notification
+                if GCKeyboard.coalesced != nil { self.onKeyboardVisibilityChanged?(true) }
                 if !success {
                    // Fallback: try again? or just log (can't log).
                    // Maybe ensure user interaction is on on window?
@@ -1732,6 +1779,10 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 			// a no-op once it ran
 			resignFirstResponder()
 			keyboardWillHide(notification: NSNotification(name: UIResponder.keyboardWillHideNotification, object: nil))
+			// a hardware keyboard keeps typing once the key row is gone
+			if GCKeyboard.coalesced != nil {
+				DispatchQueue.main.async { self.hardwareKeyboardChanged() }
+			}
 		}
 	}
 

@@ -182,3 +182,11 @@ import Testing
 		#expect(pictureAboveTrackpad(in: CGRect(x: 0, y: 0, width: 400, height: 860), topInset: 0, host: .zero, minTrackpad: 120) == nil)
 	}
 }
+
+@Suite struct ThreeFingerDragTests {
+	// a Mac with three-finger drag on swipes between desktops with four fingers
+	@Test func 三指拖移打開時改四指滑動() {
+		#expect(trackpadSwipeFingers(threeFingerDrag: false) == 3)
+		#expect(trackpadSwipeFingers(threeFingerDrag: true) == 4)
+	}
+}

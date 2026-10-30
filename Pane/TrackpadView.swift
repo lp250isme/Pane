@@ -21,9 +21,12 @@ protocol TrackpadDelegate: AnyObject {
 /// The space below the picture (portrait, or the lower half of a half fold) as a Mac-style trackpad.
 /// One finger moves the cursor, a tap clicks, press and hold then move drags, two fingers scroll or
 /// pinch, three or four fingers swipe for Mission Control and Spaces, four fingers pinch or spread.
+/// With three-finger drag on, three fingers drag instead and only four swipe.
 /// It owns its touches: the stream's overlay and tap recognizers leave them alone.
 final class TrackpadView: UIView {
 	weak var delegate: TrackpadDelegate?
+	// a hidden pad may never see the lift reset() waits for
+	override var isHidden: Bool { didSet { if isHidden { ignoreUntilLift = false } } }
 
 	private enum Mode { case idle, pointer, drag, scroll, zoom, multi }
 	private var mode = Mode.idle
@@ -94,7 +97,9 @@ final class TrackpadView: UIView {
 		hint.font = .preferredFont(forTextStyle: .footnote)
 		hint.adjustsFontForContentSizeCategory = true
 		hint.textColor = UIColor(white: 1, alpha: 0.42)
-		hint.text = String(localized: "One finger to move, tap to click\nTwo fingers to scroll or right click\nThree or four fingers to swipe between desktops")
+		hint.text = SettingsHandler.threeFingerDrag
+			? String(localized: "One finger to move, tap to click\nTwo fingers to scroll or right click\nThree fingers to drag, four to swipe between desktops")
+			: String(localized: "One finger to move, tap to click\nTwo fingers to scroll or right click\nThree or four fingers to swipe between desktops")
 		hint.isUserInteractionEnabled = false
 		addSubview(hint)
 
@@ -290,6 +295,8 @@ final class TrackpadView: UIView {
 		} else {
 			if mode == .pointer { delegate?.trackpadCursorActive(false) }
 			mode = .idle
+			// one finger's drift before the others landed isn't movement of the new gesture
+			moved = false
 			measureFromHere()
 		}
 	}
@@ -355,8 +362,20 @@ final class TrackpadView: UIView {
 				delegate?.trackpadMove(by: delta)
 				break
 			}
+			// three-finger drag (a Mac Accessibility option): three fingers hold the left button once they move
+			let threeFingerDrag = SettingsHandler.threeFingerDrag
+			if threeFingerDrag && maxFingers == 3 {
+				guard moved, mode == .idle else { break }
+				mode = .drag
+				setDragging(true)
+				delegate?.trackpadCursorActive(true)
+				feedback.impactOccurred()
+				delegate?.trackpadButton(1, pressed: true)
+				delegate?.trackpadMove(by: CGPoint(x: c.x - startCentroid.x, y: c.y - startCentroid.y))
+				break
+			}
 			mode = .multi
-			guard !gestureSent else { break }
+			guard !gestureSent, fingers.count >= trackpadSwipeFingers(threeFingerDrag: threeFingerDrag) else { break }
 			let travel = CGVector(dx: c.x - startCentroid.x, dy: c.y - startCentroid.y)
 			let gesture = trackpadSwipe(travel, threshold: swipeDistance)
 				?? (fingers.count >= 4 && startSpread > 0 ? trackpadPinch(spreadRatio: s / startSpread) : nil)
