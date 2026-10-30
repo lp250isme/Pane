@@ -65,41 +65,42 @@ struct MainView: View {
 					Alert(title: Text(baseAlertText))
 				}
 
-			// Settings screen
-			SettingsView(visible: $inSettings)
-				.foregroundColor(Color("Foreground"))
+			// Settings overlay, iOS 16 and earlier; iOS 17 shows settings in the sidebar
+			if #available(iOS 17.0, *) {
+			} else {
+				SettingsView(visible: $inSettings)
+					.foregroundColor(Color("Foreground"))
+			}
 
 			// Loading elements
 			if isConnecting {
-				ZStack {
-					Rectangle() // Darken background
-						.fill(Color.black)
-						.opacity(0.5)
-						.edgesIgnoringSafeArea(.all)
-					VStack {
-						ActivityIndicator(isAnimating: $isConnecting, style: .large, tint: .white)
-							.padding()
-						Text(waitingForApproval ? "Waiting for \(connectingToName) to approve you..." : retryingConnect ? "\(connectingToName) didn't answer, trying again..." : "Requesting connection to \(connectingToName)...")
-							.multilineTextAlignment(.center)
-						Button(action: cancelConnection) {
-							ZStack {
-								Rectangle()
-									.fill(Color("BackgroundButton"))
-									.cornerRadius(8)
-								Text("Cancel")
-									.foregroundColor(.red)
-							}
-						}
-						.frame(maxWidth: 100, maxHeight: 48)
+				PromptOverlay {
+					ProgressView()
+						.controlSize(.large)
+					VStack(spacing: 4) {
+						Text(connectingToName)
+							.font(.headline)
+							.lineLimit(2)
+						Text(waitingForApproval ? "Waiting for the host to approve you..." : retryingConnect ? "No answer, trying again..." : "Requesting connection...")
+							.font(.subheadline)
+							.foregroundStyle(.secondary)
 					}
-					.padding()
-					.background(Rectangle().fill(Color("BackgroundPrompt")))
-					.cornerRadius(8)
-					.padding()
+					.multilineTextAlignment(.center)
+					.fixedSize(horizontal: false, vertical: true)
+					Button(role: .cancel, action: cancelConnection) {
+						Text("Cancel")
+							.frame(minWidth: 120)
+					}
+					.buttonStyle(.bordered)
+					.buttonBorderShape(.capsule)
+					.controlSize(.large)
 				}
-				.foregroundColor(Color("Foreground"))
+				.transition(.opacity)
+				.zIndex(1)
 			}
 		}
+		// the overlay above used to carry this; on iOS 17 it is gone
+		.preferredColorScheme(appScheme)
 	}
 
 	@ViewBuilder
@@ -131,13 +132,16 @@ struct MainView: View {
 			}
 		} detail: {
 			nativePages
-				.navigationTitle(page == .hosts ? hostCountStr : page == .friends ? friendCountStr : "Settings")
+				.navigationTitle(page == .hosts ? "Hosts" : page == .friends ? "Friends" : "Settings")
+				.countSubtitle(pageCountStr)
 				.navigationBarTitleDisplayMode(.inline)
 				.toolbar {
 					if page == .hosts {
 						ToolbarItem(placement: .primaryAction) {
-							Button(action: refreshHosts, label: { Image(systemName: "arrow.clockwise") })
-								.disabled(isRefreshing)
+							Button(action: refreshHosts) {
+								Label("Refresh", systemImage: "arrow.clockwise")
+							}
+							.disabled(isRefreshing)
 						}
 					}
 				}
@@ -504,6 +508,15 @@ struct MainView: View {
 			.foregroundColor(Color("Foreground"))
 	}
 
+	// host or friend count once loaded; nav subtitle on iOS 26, section header before
+	private var pageCountStr: String? {
+		switch page {
+		case .hosts: return refreshTime.isEmpty ? nil : hostCountStr
+		case .friends: return friendCountStr
+		case .settings: return nil
+		}
+	}
+
 	// iOS 17+ page content: system lists, the grouped background comes from the list
 	@available(iOS 17.0, *)
 	@ViewBuilder
@@ -522,7 +535,12 @@ struct MainView: View {
 				Section {
 					if sessionExpired {
 						HStack {
-							Label("Your Parsec session expired", systemImage: "person.crop.circle.badge.exclamationmark")
+							Label {
+								Text("Your Parsec session expired")
+							} icon: {
+								Image(systemName: "person.crop.circle.badge.exclamationmark")
+									.foregroundStyle(.orange)
+							}
 							Spacer()
 							Button("Sign In", action: logout)
 								.fontWeight(.semibold)
@@ -531,7 +549,12 @@ struct MainView: View {
 					}
 					if let refreshError = refreshError {
 						HStack {
-							Label(refreshError, systemImage: "exclamationmark.triangle")
+							Label {
+								Text(refreshError)
+							} icon: {
+								Image(systemName: "exclamationmark.triangle.fill")
+									.foregroundStyle(.orange)
+							}
 							Spacer()
 							Button("Retry", action: refreshHosts)
 								.fontWeight(.semibold)
@@ -551,6 +574,7 @@ struct MainView: View {
 						Button("Reconnect", action: reconnectLastHost)
 							.buttonStyle(.borderedProminent)
 							.buttonBorderShape(.capsule)
+							.controlSize(.small)
 						Button(action: clearLastHost) {
 							Image(systemName: "xmark.circle.fill")
 								.font(.title3)
@@ -585,8 +609,10 @@ struct MainView: View {
 						}
 						Spacer()
 						Button("Connect") { connectTo(i) }
-							.buttonStyle(.borderedProminent)
+							.buttonStyle(.bordered)
 							.buttonBorderShape(.capsule)
+							.controlSize(.small)
+							.accessibilityLabel("Connect to \(i.hostname)")
 					}
 					.padding(.vertical, 2)
 					.contextMenu {
@@ -600,13 +626,19 @@ struct MainView: View {
 				}
 				if hosts.isEmpty, !isRefreshing, !sessionExpired, refreshError == nil, !refreshTime.isEmpty {
 					ContentUnavailableView("No Hosts", systemImage: "desktopcomputer", description: Text("Computers running Parsec on your account show up here."))
+						.listRowBackground(Color.clear)
 				}
 			} header: {
-				Text("Hosts")
+				if #available(iOS 26, *) {
+					Text("Hosts")
+				} else {
+					Text(refreshTime.isEmpty ? "Hosts" : hostCountStr)
+				}
 			} footer: {
 				if isRefreshing {
 					HStack(spacing: 8) {
 						ProgressView()
+							.controlSize(.small)
 						Text("Refreshing hosts...")
 					}
 				} else if !refreshTime.isEmpty {
@@ -637,12 +669,18 @@ struct MainView: View {
 				}
 			}
 			if friends.count > 0 {
-				Section("Friends") {
+				Section {
 					ForEach(friends) { i in
 						HStack(spacing: 12) {
 							avatar(userId: i.id, size: 40)
 							Text("\(i.username)#\(String(i.id))")
 						}
+					}
+				} header: {
+					if #available(iOS 26, *) {
+						Text("Friends")
+					} else {
+						Text(friendCountStr)
 					}
 				}
 			}
@@ -662,13 +700,14 @@ struct MainView: View {
 					.aspectRatio(contentMode: .fill)
 			},
 			placeholder: {
-				Image("IconTransparent")
-					.resizable()
-					.aspectRatio(contentMode: .fit)
+				Image(systemName: "person.fill")
+					.font(.system(size: CGFloat(size) * 0.45))
+					.foregroundStyle(.secondary)
+					.frame(maxWidth: .infinity, maxHeight: .infinity)
 					.background(Color(uiColor: .tertiarySystemFill))
 			})
 			.frame(width: CGFloat(size), height: CGFloat(size))
-			.clipShape(RoundedRectangle(cornerRadius: CGFloat(size) * 0.22, style: .continuous))
+			.clipShape(Circle())
 			.accessibilityHidden(true)
 	}
 
@@ -1065,6 +1104,17 @@ struct IdentifiableHostInfo: Identifiable {
 struct IdentifiableUserInfo: Identifiable {
 	var id: Int // User ID
 	var username: String // User Display Name
+}
+
+private extension View {
+	@ViewBuilder
+	func countSubtitle(_ text: String?) -> some View {
+		if #available(iOS 26, *), let text = text {
+			self.navigationSubtitle(text)
+		} else {
+			self
+		}
+	}
 }
 
 // a narrow window opens on the page, the sidebar is one back tap away

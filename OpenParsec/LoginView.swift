@@ -17,117 +17,170 @@ struct LoginView: View {
 		self.controller = controller
 	}
 
+	private enum Field: Hashable {
+		case email, password, tfa
+	}
+
+	@FocusState private var focus: Field?
+
 	var body: some View {
 		ZStack {
-			// Background
-			Rectangle()
-				.fill(Color("BackgroundGray"))
-				.edgesIgnoringSafeArea(.all)
+			Color(uiColor: .systemGroupedBackground)
+				.ignoresSafeArea()
 
-			// Login controls
-			VStack(spacing: 8) {
-				HStack(spacing: 2) {
-					Image("IconTransparent")
-						.resizable()
-						.aspectRatio(contentMode: .fit)
-					Image("LogoShadow")
-						.resizable()
-						.aspectRatio(contentMode: .fit)
-						.padding([.top, .bottom, .trailing])
-				}
-				.frame(height: 80)
-				TextField("Email", text: $inputEmail)
-					.padding()
-					.background(Rectangle().fill(Color("BackgroundField")))
-					.cornerRadius(8)
-					.disableAutocorrection(true)
-					.autocapitalization(/*@START_MENU_TOKEN@*/.none/*@END_MENU_TOKEN@*/)
-					.keyboardType(.emailAddress)
-					.textContentType(.emailAddress)
-				SecureField("Password", text: $inputPassword, onCommit: { authenticate() })
-					.padding()
-					.background(Rectangle().fill(Color("BackgroundField")))
-					.cornerRadius(8)
-					.disableAutocorrection(true)
-					.autocapitalization(/*@START_MENU_TOKEN@*/.none/*@END_MENU_TOKEN@*/)
-					.textContentType(.password)
-				Button(action: {authenticate()}) {
-					ZStack {
-						Rectangle()
-							.fill(Color("AccentColor"))
-							.cornerRadius(8)
-						Text("Login")
-							.foregroundColor(.white)
+			GeometryReader { geo in
+				ScrollView {
+					VStack(spacing: 28) {
+						header
+						credentials
+						signInButton
 					}
-					.frame(height: 54)
+					.padding(.horizontal, 20)
+					.padding(.vertical, 32)
+					.frame(maxWidth: 420)
+					// centred on tall screens, scrolls when the keyboard or landscape leaves no room
+					.frame(maxWidth: .infinity, minHeight: geo.size.height)
+					.disabled(isLoading) // Disable when loading
 				}
+				.dismissKeyboardOnScroll()
 			}
 
-			.padding()
-			.frame(maxWidth: 400)
-			.disabled(isLoading) // Disable when loading
-
-			// Loading elements
-			if isLoading || presentTFAAlert {
-				ZStack {
-					Rectangle() // Darken background
-						.fill(Color.black)
-						.opacity(0.5)
-						.edgesIgnoringSafeArea(.all)
-					VStack {
-						if isLoading {
-							ActivityIndicator(isAnimating: $isLoading, style: .large, tint: .white)
-							 .padding()
-						 Text("Loading...")
-							 .multilineTextAlignment(.center)
-						} else if presentTFAAlert {
-							Text("Please enter your 2FA code from your authenticator app")
-								.multilineTextAlignment(.center)
-							SecureField("2FA Code", text: $inputTFA)
-								.padding()
-								.background(Rectangle().fill(Color("BackgroundField")))
-								.foregroundColor(Color("Foreground"))
-								.cornerRadius(8)
-								.disableAutocorrection(true)
-								.autocapitalization(/*@START_MENU_TOKEN@*/.none/*@END_MENU_TOKEN@*/)
-								.textContentType(.oneTimeCode)
-							HStack {
-								Button(action: {presentTFAAlert = false}) {
-									ZStack {
-										Rectangle()
-											.fill(Color("BackgroundButton"))
-											.cornerRadius(8)
-										Text("Cancel")
-											.foregroundColor(Color("Foreground"))
-									}
-									.frame(height: 54)
-								}
-								Button(action: {authenticate(inputTFA)}) {
-									ZStack {
-										Rectangle()
-											.fill(Color("AccentColor"))
-											.cornerRadius(8)
-										Text("Enter")
-											.foregroundColor(.white)
-									}
-									.frame(height: 54)
-								}
-							}
-						}
-					}
-					.padding()
-					.background(Rectangle().fill(Color("BackgroundPrompt")))
-					.cornerRadius(8)
-					.padding()
+			// 2FA prompt
+			if presentTFAAlert {
+				PromptOverlay {
+					tfaPrompt
 				}
+				.disabled(isLoading)
+				.onAppear { focus = .tfa }
+				.transition(.opacity)
 			}
 		}
-		.foregroundColor(Color("Foreground"))
+		.animation(.default, value: presentTFAAlert)
+		.preferredColorScheme(appScheme)
 		.alert(isPresented: $showAlert) {
 			Alert(title: Text("Login Failed"), message: Text(alertText))
 		}
 		.onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in retryRestore() }
 		.onReceive(NotificationCenter.default.publisher(for: UIApplication.protectedDataDidBecomeAvailableNotification)) { _ in retryRestore() }
+	}
+
+	private var header: some View {
+		VStack(spacing: 12) {
+			Image("IconTransparent")
+				.resizable()
+				.aspectRatio(contentMode: .fit)
+				.frame(width: 88, height: 88)
+				.accessibilityHidden(true)
+			VStack(spacing: 4) {
+				Text("OpenParsec")
+					.font(.largeTitle.bold())
+				Text("Sign in with your Parsec account")
+					.font(.subheadline)
+					.foregroundStyle(.secondary)
+			}
+			.multilineTextAlignment(.center)
+		}
+	}
+
+	private var credentials: some View {
+		VStack(spacing: 0) {
+			TextField("Email", text: $inputEmail)
+				.disableAutocorrection(true)
+				.autocapitalization(.none)
+				.keyboardType(.emailAddress)
+				.textContentType(.emailAddress)
+				.submitLabel(.next)
+				.focused($focus, equals: .email)
+				.onSubmit { focus = .password }
+				.padding(.horizontal, 16)
+				.frame(minHeight: 50)
+			Divider()
+				.padding(.leading, 16)
+			SecureField("Password", text: $inputPassword)
+				.disableAutocorrection(true)
+				.autocapitalization(.none)
+				.textContentType(.password)
+				.submitLabel(.go)
+				.focused($focus, equals: .password)
+				.onSubmit { authenticate() }
+				.padding(.horizontal, 16)
+				.frame(minHeight: 50)
+		}
+		.background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: fieldCornerRadius, style: .continuous))
+	}
+
+	private var signInButton: some View {
+		Button(action: { authenticate() }) {
+			ZStack {
+				Text("Sign In")
+					.fontWeight(.semibold)
+					.opacity(isLoading && !presentTFAAlert ? 0 : 1)
+				if isLoading && !presentTFAAlert {
+					ProgressView()
+						.accessibilityLabel("Loading...")
+				}
+			}
+			.frame(maxWidth: .infinity)
+		}
+		.controlSize(.large)
+		.buttonBorderShape(.capsule)
+		.prominentActionStyle()
+	}
+
+	private var tfaPrompt: some View {
+		Group {
+			Image(systemName: "lock.shield")
+				.font(.largeTitle)
+				.foregroundStyle(.tint)
+				.accessibilityHidden(true)
+			VStack(spacing: 4) {
+				Text("Two-Factor Authentication")
+					.font(.headline)
+				Text("Please enter your 2FA code from your authenticator app")
+					.font(.subheadline)
+					.foregroundStyle(.secondary)
+			}
+			.multilineTextAlignment(.center)
+			TextField("2FA Code", text: $inputTFA)
+				.disableAutocorrection(true)
+				.autocapitalization(.none)
+				.textContentType(.oneTimeCode)
+				.font(.title3.monospacedDigit())
+				.multilineTextAlignment(.center)
+				.submitLabel(.done)
+				.focused($focus, equals: .tfa)
+				.onSubmit { authenticate(inputTFA) }
+				.padding(.horizontal, 12)
+				.frame(minHeight: 48)
+				.background(Color(uiColor: .tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+			HStack(spacing: 12) {
+				Button(role: .cancel, action: { presentTFAAlert = false }) {
+					Text("Cancel")
+						.frame(maxWidth: .infinity)
+				}
+				.buttonStyle(.bordered)
+				Button(action: { authenticate(inputTFA) }) {
+					ZStack {
+						Text("Enter")
+							.fontWeight(.semibold)
+							.opacity(isLoading ? 0 : 1)
+						if isLoading {
+							ProgressView()
+								.accessibilityLabel("Loading...")
+						}
+					}
+					.frame(maxWidth: .infinity)
+				}
+				.prominentActionStyle()
+			}
+			.controlSize(.large)
+			.buttonBorderShape(.capsule)
+		}
+	}
+
+	private var fieldCornerRadius: CGFloat {
+		if #available(iOS 26, *) { return 26 }
+		return 12
 	}
 
 	func retryRestore() {
@@ -230,6 +283,17 @@ struct LoginView: View {
 			}
 		}
 		task.resume()
+	}
+}
+
+private extension View {
+	@ViewBuilder
+	func dismissKeyboardOnScroll() -> some View {
+		if #available(iOS 16, *) {
+			self.scrollDismissesKeyboard(.interactively)
+		} else {
+			self
+		}
 	}
 }
 

@@ -28,7 +28,9 @@ jobs:
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: "27.1"
+          # pinned below 27: the Duo fold APIs need the iOS 27.1 SDK and compile out under Swift < 6.4
+          # (see ParsecViewController); a 27.0 Xcode would have Swift 6.4 without that SDK
+          xcode-version: "26"
       - name: Checkout
         uses: actions/checkout@v3
         with:

@@ -313,9 +313,12 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 		menuEdgeSwipeRight = addMenuEdgeSwipe(.right)
 
 		// half-folding changes the reserved fold region without changing bounds
+		// the iOS 27.1 SDK (Xcode 27, Swift 6.4) has the fold APIs; CI's older Xcode builds without them
+		#if compiler(>=6.4)
 		if #available(iOS 27.1, *) {
 			view.addInteraction(UIHingeInteraction { [weak self] _, _ in self?.view.setNeedsLayout() })
 		}
+		#endif
 
 		NotificationCenter.default.addObserver(
 			self,
@@ -389,11 +392,13 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	// leaving the lower half for the keyboard (and touchpad mode, which works anywhere)
 	func streamFrame() -> CGRect {
 		let b = view.bounds
+		#if compiler(>=6.4)
 		if #available(iOS 27.1, *),
 		   let fold = view.reservedRegions(kind: .division).first(where: { $0.isActive && $0.frame.width > $0.frame.height }),
 		   fold.frame.minY > b.height / 4 {
 			return CGRect(x: 0, y: 0, width: b.width, height: fold.frame.minY)
 		}
+		#endif
 		// ponytail: a vertical fold (book posture) keeps the stream across both halves
 		return b
 	}

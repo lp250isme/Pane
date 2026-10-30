@@ -1,102 +1,6 @@
 import SwiftUI
 
 /**
- * Category Title
- *
- * Displays a title before the start of a list.
- */
-struct CatTitle: View {
-	var text: String
-
-	init(_ text: String) {
-		self.text = text
-	}
-
-	var body: some View {
-		HStack {
-			Text(text)
-			Spacer()
-		}
-		.padding(.horizontal)
-		.padding(.vertical, 4)
-	}
-}
-
-/**
- * Category List
- *
- * Displays a list of items. Acts as a container.
- * Use of `CatItem`s is recommended.
- */
-struct CatList<Content: View>: View {
-	var content: () -> Content
-
-	init(@ViewBuilder content: @escaping () -> Content) {
-		self.content = content
-	}
-
-	var body: some View {
-		VStack(content: content)
-			.padding(.vertical, 10)
-			.background(Rectangle().fill(Color("BackgroundTab")).cornerRadius(10))
-			.padding(.horizontal)
-	}
-}
-
-/**
- * Category Item
- *
- * Displays a new item with a label in a list.
- * Should be used within `CatList`s.
- */
-struct CatItem<Content: View>: View {
-	var title: String
-	var content: () -> Content
-
-	init(_ title: String, @ViewBuilder content: @escaping () -> Content) {
-		self.title = title
-		self.content = content
-	}
-
-	var body: some View {
-		HStack {
-			Text(title)
-				.lineLimit(1)
-			Spacer()
-			content()
-		}
-		.padding(.horizontal)
-	}
-}
-
-struct CatSlider: View {
-	var title: String
-	var value: Binding<Double>
-	var range: ClosedRange<Double>
-	var step: Double
-
-	init(_ title: String, value: Binding<Double>, in range: ClosedRange<Double>, step: Double) {
-		self.title = title
-		self.value = value
-		self.range = range
-		self.step = step
-	}
-
-	var body: some View {
-		VStack(spacing: 4) {
-			HStack {
-				Text(title)
-					.lineLimit(1)
-				Spacer()
-				Text(String(format: "%.1f", value.wrappedValue))
-			}
-			Slider(value: value, in: range, step: step)
-		}
-		.padding(.horizontal)
-	}
-}
-
-/**
  * Choice
  *
  * Used to depict a single choice with a given label and value.
@@ -112,128 +16,51 @@ struct Choice<T: Hashable> {
 }
 
 /**
- * Segmented Picker
+ * Prompt Overlay
  *
- * Displays a segmented picker with a given list of choices.
+ * Dims the screen and shows a centred card for a blocking prompt.
+ * Liquid Glass on iOS 26, a material card before.
  */
-struct SegmentPicker<SelectionValue: Hashable>: View {
-	var selection: Binding<SelectionValue>
-	var options: [Choice<SelectionValue>]
+struct PromptOverlay<Content: View>: View {
+	var content: () -> Content
 
-	init(selection: Binding<SelectionValue>, options: [Choice<SelectionValue>]) {
-		self.selection = selection
-		self.options = options
+	init(@ViewBuilder content: @escaping () -> Content) {
+		self.content = content
 	}
 
 	var body: some View {
-		Picker("", selection: selection) {
-			ForEach(options.indices, id: \.self) { i in
-				Text(options[i].label).tag(options[i].value)
-			}
+		ZStack {
+			Color.black.opacity(0.4)
+				.ignoresSafeArea()
+			VStack(spacing: 16, content: content)
+				.padding(24)
+				.frame(maxWidth: 360)
+				.promptCardBackground()
+				.padding(24)
+				.accessibilityElement(children: .contain)
+				.accessibilityAddTraits(.isModal)
 		}
-		.pickerStyle(.segmented)
 	}
 }
 
-/**
- * Multiple Choice Picker
- *
- * Displays a button that opens a menu to pick from a given list of choices.
- */
-struct MultiPicker<SelectionValue: Hashable>: View {
-	var selection: Binding<SelectionValue>
-	var options: [Choice<SelectionValue>]
-
-	@State var showChoices: Bool = false
-	@State var valueText: String = "Choose..."
-
-	init(selection: Binding<SelectionValue>, options: [Choice<SelectionValue>]) {
-		self.selection = selection
-		self.options = options
-	}
-
-	var body: some View {
-		if #available(iOS 15, *) {
-			Picker("", selection: selection) {
-				ForEach(options.indices, id: \.self) { i in
-					Text(options[i].label).tag(options[i].value)
-				}
-			}
-			.pickerStyle(.menu)
+extension View {
+	/// Card surface for prompts: glass on iOS 26, regular material before.
+	@ViewBuilder
+	func promptCardBackground() -> some View {
+		if #available(iOS 26, *) {
+			self.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
 		} else {
-			// Dumb workaround for older iOS versions. -Angel
-			Button(action: {showChoices.toggle()}) {
-				HStack {
-					Text(valueText)
-						.multilineTextAlignment(.center)
-						.padding(.trailing, -4)
-					Image(systemName: "chevron.up.chevron.down")
-						.font(.system(size: 12))
-				}
-				.foregroundColor(Color("AccentColor"))
-			}
-			.actionSheet(isPresented: $showChoices) {
-				genActionSheet()
-			}
-			.onAppear {
-				for option in options {
-					if option.value == selection.wrappedValue {
-						valueText = option.label
-						break
-					}
-				}
-			}
+			self.background(.regularMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
 		}
 	}
 
-	func genActionSheet() -> ActionSheet {
-		let buttons = options.map { option in
-			Alert.Button.default(Text(option.value == selection.wrappedValue ? "    \(option.label)  ✓" : option.label), action: {select(option)})
+	/// Primary action button: glass prominent on iOS 26, bordered prominent before.
+	@ViewBuilder
+	func prominentActionStyle() -> some View {
+		if #available(iOS 26, *) {
+			self.buttonStyle(.glassProminent)
+		} else {
+			self.buttonStyle(.borderedProminent)
 		}
-		return ActionSheet(title: Text("Pick your preference:"), buttons: buttons + [Alert.Button.cancel()])
-	}
-
-	func select(_ option: Choice<SelectionValue>) {
-		valueText = option.label
-		selection.wrappedValue = option.value
-	}
-}
-
-struct ExUI_Previews: PreviewProvider {
-	@State static var value1 = false
-	@State static var value2 = true
-
-	static var previews: some View {
-		VStack {
-			CatTitle("Category Title")
-			CatList {
-				CatItem("Category Item") {
-					Toggle("", isOn: .constant(true))
-						.frame(width: 80)
-				}
-			}
-			CatTitle("Other Controls")
-			CatList {
-				CatItem("Segmented Picker") {
-					SegmentPicker(selection: $value1, options:
-					[
-						Choice("False", false),
-						Choice("True", true)
-					])
-					.frame(width: 180)
-				}
-				CatItem("Multiple Choice Picker") {
-					MultiPicker(selection: $value2, options:
-					[
-						Choice("False", false),
-						Choice("True", true)
-					])
-				}
-			}
-			Spacer()
-		}
-		.background(Rectangle().fill(Color("BackgroundGray")).edgesIgnoringSafeArea(.all))
-		.foregroundColor(Color("Foreground"))
-		.colorScheme(appScheme)
 	}
 }

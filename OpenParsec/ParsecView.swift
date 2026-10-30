@@ -7,6 +7,8 @@ struct ParsecStatusBar: View {
 	@Binding var showMenu: Bool
 	@State var metricInfo: String = "Loading..."
 	@Binding var showDCAlert: Bool
+	// an alert waiting for the menu popover to go, polling stays parked until it is raised
+	@Binding var pendingDCAlert: Bool
 	@Binding var DCAlertText: String
 	@Binding var isReconnecting: Bool
 	@Binding var connectionLost: Bool
@@ -16,9 +18,10 @@ struct ParsecStatusBar: View {
 	let timer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
 	let onSilentDisconnect: () -> Void
 
-	init(showMenu: Binding<Bool>, showDCAlert: Binding<Bool>, DCAlertText: Binding<String>, parsecViewController: ParsecViewController, isReconnecting: Binding<Bool>, connectionLost: Binding<Bool>, onSilentDisconnect: @escaping () -> Void) {
+	init(showMenu: Binding<Bool>, showDCAlert: Binding<Bool>, pendingDCAlert: Binding<Bool>, DCAlertText: Binding<String>, parsecViewController: ParsecViewController, isReconnecting: Binding<Bool>, connectionLost: Binding<Bool>, onSilentDisconnect: @escaping () -> Void) {
 		_showMenu = showMenu
 		_showDCAlert = showDCAlert
+		_pendingDCAlert = pendingDCAlert
 		_DCAlertText = DCAlertText
 		_isReconnecting = isReconnecting
 		_connectionLost = connectionLost
@@ -29,20 +32,21 @@ struct ParsecStatusBar: View {
 	var body: some View {
 		// Overlay elements
 		if showMenu || SettingsHandler.alwaysShowStatus {
-			VStack {
-				Text(metricInfo)
-					.frame(minWidth: 200, maxWidth: .infinity, maxHeight: 20)
-					.multilineTextAlignment(.leading)
-					.font(.system(size: 10))
-					.lineSpacing(20)
-					.lineLimit(nil)
-			}
-			.background(Rectangle().fill(Color("BackgroundPrompt").opacity(0.75)))
-			.foregroundColor(Color("Foreground"))
-			.frame(maxHeight: .infinity, alignment: .top)
-			.zIndex(1)
-			.edgesIgnoringSafeArea(.all)
-
+			// a read-only status pill, the caller pads it inside the safe area
+			Text(metricInfo)
+				.font(.caption2.monospacedDigit())
+				.foregroundStyle(.primary)
+				.multilineTextAlignment(.center)
+				.lineLimit(nil)
+				.fixedSize(horizontal: false, vertical: true)
+				.padding(.horizontal, 12)
+				.padding(.vertical, 6)
+				.streamChrome(Capsule(), material: .ultraThinMaterial)
+				.accessibilityLabel("Stream stats")
+				.accessibilityValue(metricInfo)
+				.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+				.allowsHitTesting(false)
+				.zIndex(1)
 		}
 		EmptyView()
 			.onReceive(timer) { _ in
@@ -51,7 +55,7 @@ struct ParsecStatusBar: View {
 	}
 
 	func poll() {
-		if showDCAlert || ParsecBackgroundManager.shared.isPaused {
+		if showDCAlert || pendingDCAlert || ParsecBackgroundManager.shared.isPaused {
 			return
 		}
 
@@ -180,6 +184,8 @@ struct ParsecView: View {
 	var controller: ContentView?
 
 	@State var showDCAlert: Bool = false
+	// an alert that arrived while the menu popover was up, raised once the popover has gone
+	@State var pendingDCAlert: Bool = false
 	@State var DCAlertText: String = "Disconnected (reason unknown)"
 	@State var metricInfo: String = "Loading..."
 
@@ -188,11 +194,24 @@ struct ParsecView: View {
 	@AppStorage("keyboardHintShown") var keyboardHintShown: Bool = false
 	@AppStorage("keyboardPanHintShown") var keyboardPanHintShown: Bool = false
 	@State var hint: String?
-	// drives the stats line now that the menu is a native one (was showMenu)
+	// drives the stats line now that the menu is a popover (was showMenu)
 	@State var showStats: Bool = false
-	// lights the menu button up after an edge swipe, a native Menu cant be opened from code
-	@State var menuAttention: Bool = false
+	// the floating button opens the stream menu in a native popover
+	@State var showMenuPopover: Bool = false
+	// true from the panel's onAppear to its onDisappear, so it stays true while the popover animates out
+	@State var menuPresented: Bool = false
+	// measured height of the menu list so the popover fits its content (iOS 18+), an estimate before that
+	@State var menuContentHeight: CGFloat = StreamChrome.menuHeightEstimate
+	// the popover can take first responder from the stream, remember to hand the keyboard back
+	@State var keyboardUpBeforeMenu: Bool = false
+	// actions that remove the popover's anchor (or the whole view) wait until it has gone
+	@State var pendingMenuAction: PendingMenuAction?
+	@State var streamEnded: Bool = false
 	@AppStorage("menuSwipeHintShown") var menuSwipeHintShown: Bool = false
+
+	enum PendingMenuAction {
+		case hideButtons, disconnect
+	}
 
 	@State var showKeyboard: Bool = false
 	@State var zoomEnabled: Bool = false
@@ -235,89 +254,10 @@ struct ParsecView: View {
     // Let's use onAppear/post.
 
 	var body: some View {
-		ZStack {
-
-			UIViewControllerWrapper(self.parsecViewController)
-				.zIndex(1)
-				.prefersPersistentSystemOverlaysHidden()
-
-			ParsecStatusBar(showMenu: $showStats, showDCAlert: $showDCAlert, DCAlertText: $DCAlertText, parsecViewController: parsecViewController, isReconnecting: $isReconnecting, connectionLost: $connectionLost, onSilentDisconnect: { disconnect() })
-
-			if isReconnecting || connectionLost {
-				VStack(spacing: 12) {
-					ActivityIndicator(isAnimating: .constant(true), style: .large, tint: .white)
-					Text(isReconnecting ? ParsecBackgroundManager.shared.lastHostname.map { "Reconnecting to \($0)..." } ?? "Reconnecting..." : "Connection lost...")
-						.font(.system(size: 16, weight: .medium))
-						.foregroundColor(.white)
-					Button(action: { disconnect() }) {
-						Text("Disconnect")
-							.font(.system(size: 15, weight: .semibold))
-							.foregroundColor(.white)
-							.padding(.horizontal, 20)
-							.padding(.vertical, 8)
-							.background(Color.white.opacity(0.2))
-							.cornerRadius(8)
-					}
-					.padding(.top, 4)
-				}
-				.frame(maxWidth: .infinity, maxHeight: .infinity)
-				.background(Color.black.opacity(0.6))
-				.zIndex(10)
-			}
-
-			if dataModel.isBlocked {
-				Text("Host is using the machine")
-					.foregroundColor(.white)
-					.padding(.horizontal, 16)
-					.padding(.vertical, 10)
-					.background(Color("BackgroundPrompt").opacity(0.85))
-					.cornerRadius(8)
-					.zIndex(3)
-			}
-
-			if let hint = hint {
-				Text(hint)
-					.multilineTextAlignment(.center)
-					.foregroundColor(.white)
-					.padding(.horizontal, 16)
-					.padding(.vertical, 10)
-					.background(Color("BackgroundPrompt").opacity(0.85))
-					.cornerRadius(8)
-					.padding(.top, showKeyboard ? 100 : 0)
-					.frame(maxHeight: .infinity, alignment: showKeyboard ? .top : .center)
-					.allowsHitTesting(false)
-					.zIndex(3)
-			}
-
-			VStack {
-				if !hideOverlay {
-					HStack {
-						overlayMenuButton
-							.padding()
-							.edgesIgnoringSafeArea(.all)
-						Spacer()
-					}
-				}
-				if !hideKeyboardButton {
-					HStack {
-						Button(action: toggleKeyboard) {
-							Image(systemName: "keyboard")
-								.resizable()
-								.aspectRatio(contentMode: .fit)
-								.frame(width: 32, height: 32)
-								.foregroundColor(Color("Foreground"))
-								.padding(8)
-								.background(Rectangle().fill(Color("BackgroundPrompt").opacity(showKeyboard ? 0.75 : 0.5)))
-								.cornerRadius(8)
-						}
-						.padding(.leading)
-						.edgesIgnoringSafeArea(.all)
-						Spacer()
-					}
-				}
-				Spacer()
-			}
-			.zIndex(2)
+		// read the real safe area here, the stream layer itself runs edge to edge
+		GeometryReader { proxy in
+			streamLayer(safeArea: proxy.safeAreaInsets)
+				.edgesIgnoringSafeArea(.all)
 		}
 		.statusBarHidden(SettingsHandler.hideStatusBar)
 		.alert(isPresented: $showDCAlert) {
@@ -336,6 +276,19 @@ struct ParsecView: View {
 				  }),
 				  secondaryButton: .cancel(Text("Close"), action: {disconnect()}))
 		}
+		// an alert cant show while the popover is up: park it, close the popover, menuDidDismiss raises it.
+		// polling stays gated on pendingDCAlert meanwhile, so nothing reconnects in the gap
+		.onChange(of: showDCAlert) { shown in
+			guard shown else { return }
+			if menuPresented {
+				pendingDCAlert = true
+				showDCAlert = false
+				showMenuPopover = false
+			} else if showMenuPopover {
+				// asked for but never on screen, nothing to wait for
+				showMenuPopover = false
+			}
+		}
 		.onChange(of: isReconnecting) { reconnecting in
 			if !reconnecting {
 				CParsec.setMuted(muted)
@@ -351,117 +304,211 @@ struct ParsecView: View {
 			}
 			disconnect(isBackgroundDisconnect: true)
 		}
-		.edgesIgnoringSafeArea(.all)
-
 	}
 
-	// the floating button opens a native menu, iOS 26 gives it Liquid Glass
-	@ViewBuilder
+	func streamLayer(safeArea: EdgeInsets) -> some View {
+		ZStack {
+
+			UIViewControllerWrapper(self.parsecViewController)
+				.zIndex(1)
+				.prefersPersistentSystemOverlaysHidden()
+
+			ParsecStatusBar(showMenu: $showStats, showDCAlert: $showDCAlert, pendingDCAlert: $pendingDCAlert, DCAlertText: $DCAlertText, parsecViewController: parsecViewController, isReconnecting: $isReconnecting, connectionLost: $connectionLost, onSilentDisconnect: { disconnect() })
+				.padding(.top, safeArea.top + StreamChrome.spacing)
+				.padding(.horizontal, statusSideInset(safeArea))
+				.zIndex(1)
+
+			if isReconnecting || connectionLost {
+				PromptOverlay {
+					ProgressView()
+						.progressViewStyle(.circular)
+						.controlSize(.large)
+					Text(isReconnecting ? ParsecBackgroundManager.shared.lastHostname.map { "Reconnecting to \($0)..." } ?? "Reconnecting..." : "Connection lost...")
+						.font(.headline)
+						.multilineTextAlignment(.center)
+					Button(role: .destructive, action: { disconnect() }) {
+						Text("Disconnect")
+							.frame(minWidth: 120)
+					}
+					.buttonStyle(.bordered)
+					.controlSize(.large)
+				}
+				.zIndex(10)
+			}
+
+			if dataModel.isBlocked {
+				Text("Host is using the machine")
+					.font(.subheadline.weight(.medium))
+					.padding(.horizontal, 20)
+					.padding(.vertical, 12)
+					.streamChrome(Capsule())
+					.zIndex(3)
+			}
+
+			if let hint = hint {
+				Text(hint)
+					.font(.subheadline.weight(.medium))
+					.multilineTextAlignment(.center)
+					.padding(.horizontal, 22)
+					.padding(.vertical, 12)
+					.streamChrome(Capsule())
+					// with the keyboard up the centre is covered, sit just below the top chrome instead
+					.padding(.top, showKeyboard ? belowTopChrome(safeArea) : 0)
+					.frame(maxHeight: .infinity, alignment: showKeyboard ? .top : .center)
+					.allowsHitTesting(false)
+					.zIndex(3)
+			}
+
+			VStack {
+				if !hideOverlay {
+					HStack {
+						overlayMenuButton
+							.padding(StreamChrome.edge)
+							.edgesIgnoringSafeArea(.all)
+						Spacer()
+					}
+				}
+				if !hideKeyboardButton {
+					HStack {
+						keyboardButton
+							.padding(.leading, StreamChrome.edge)
+							// alone it takes the menu button's top inset instead of hugging the edge
+							.padding(.top, hideOverlay ? StreamChrome.edge : 0)
+						.edgesIgnoringSafeArea(.all)
+						Spacer()
+					}
+				}
+				Spacer()
+			}
+			.zIndex(2)
+		}
+	}
+
+	// keep the stats pill centred and clear of the corner buttons and the sensor housing
+	func statusSideInset(_ safeArea: EdgeInsets) -> CGFloat {
+		let buttonsShown = !hideOverlay || !hideKeyboardButton
+		let clearOfButtons = buttonsShown ? StreamChrome.edge + StreamChrome.buttonSize + StreamChrome.spacing : 0
+		return max(max(safeArea.leading, safeArea.trailing) + StreamChrome.spacing, clearOfButtons)
+	}
+
+	// the first row under the menu button and the stats pill
+	func belowTopChrome(_ safeArea: EdgeInsets) -> CGFloat {
+		max(safeArea.top + StreamChrome.spacing, StreamChrome.edge) + StreamChrome.buttonSize + StreamChrome.spacing
+	}
+
+	var menuOpen: Bool { showMenuPopover || menuPresented }
+
+	// the floating button is a plain Button (a Menu here never got the tap over the stream view),
+	// it opens the stream menu in a native popover, iOS 26 gives the button Liquid Glass
 	var overlayMenuButton: some View {
-		let menu = Menu {
-			overlayMenuContent
-		} label: {
-			overlayMenuLabel
-		}
-		.accessibilityLabel("Menu")
+		styledMenuButton
+			.accessibilityLabel("Menu")
+			.popover(isPresented: $showMenuPopover) {
+				overlayMenuPanel
+			}
+	}
 
+	@ViewBuilder
+	var styledMenuButton: some View {
 		if #available(iOS 26, *) {
-			menu
-				.menuStyle(.button)
-				.buttonStyle(.glass)
-				.buttonBorderShape(.circle)
-				.opacity(menuAttention ? 1 : 0.5)
+			// glass circle, dimmed while idle so it stays out of the picture
+			Button(action: toggleMenu) {
+				Image(systemName: "slider.horizontal.3")
+					.font(.system(size: 20, weight: .medium))
+					.frame(width: 32, height: 32)
+			}
+			.buttonStyle(.glass)
+			.buttonBorderShape(.circle)
+			.opacity(menuOpen ? 1 : 0.6)
+			.animation(.easeOut(duration: 0.2), value: menuOpen)
 		} else {
-			menu
+			Button(action: toggleMenu) {
+				Image("IconTransparent")
+					.resizable()
+					.aspectRatio(contentMode: .fit)
+					.frame(width: 48, height: 48)
+					.background(Rectangle().fill(Color("BackgroundPrompt").opacity(showMenuPopover ? 0.75 : 1)))
+					.cornerRadius(8)
+					.opacity(showMenuPopover ? 1 : 0.25)
+			}
 		}
 	}
 
 	@ViewBuilder
-	var overlayMenuLabel: some View {
+	var keyboardButton: some View {
 		if #available(iOS 26, *) {
-			Image("IconTransparent")
-				.resizable()
-				.aspectRatio(contentMode: .fit)
-				.frame(width: 32, height: 32)
+			let button = Button(action: toggleKeyboard) {
+				Image(systemName: "keyboard")
+					.font(.system(size: 20, weight: .medium))
+					.frame(width: 32, height: 32)
+			}
+			.buttonBorderShape(.circle)
+			.accessibilityLabel("Keyboard")
+			.accessibilityAddTraits(showKeyboard ? .isSelected : [])
+
+			// prominent glass marks the keyboard as up
+			if showKeyboard {
+				button.buttonStyle(.glassProminent)
+			} else {
+				button.buttonStyle(.glass)
+			}
 		} else {
-			Image("IconTransparent")
-				.resizable()
-				.aspectRatio(contentMode: .fit)
-				.frame(width: 48, height: 48)
-				.background(Rectangle().fill(Color("BackgroundPrompt")))
-				.cornerRadius(8)
-				.opacity(menuAttention ? 1 : 0.25)
+			Button(action: toggleKeyboard) {
+				Image(systemName: "keyboard")
+					.resizable()
+					.aspectRatio(contentMode: .fit)
+					.frame(width: 32, height: 32)
+					.foregroundColor(Color("Foreground"))
+					.padding(8)
+					.background(Rectangle().fill(Color("BackgroundPrompt").opacity(showKeyboard ? 0.75 : 0.5)))
+					.cornerRadius(8)
+			}
+			.accessibilityLabel("Keyboard")
+		}
+	}
+
+	var overlayMenuPanel: some View {
+		List {
+			overlayMenuContent
+		}
+		.listStyle(.insetGrouped)
+		.popoverListBackground()
+		.fitsContentHeight($menuContentHeight)
+		.compactPopover(done: { showMenuPopover = false })
+		// the popover clamps this to the space it has, so landscape scrolls instead of overflowing
+		.frame(minWidth: 320, idealWidth: 340, idealHeight: menuContentHeight)
+		.onAppear { menuPresented = true }
+		.onDisappear {
+			menuPresented = false
+			menuDidDismiss()
 		}
 	}
 
 	@ViewBuilder
 	var overlayMenuContent: some View {
 		Section {
-			Menu {
+			StreamMenuPicker("Resolution", systemImage: "aspectratio", selection: Binding<ParsecResolution?>(
+				get: { resolutions.first { $0.width == dataModel.resolutionX && $0.height == dataModel.resolutionY } },
+				set: { if let resolution = $0 { changeResolution(res: resolution) } }
+			)) {
 				ForEach(resolutions, id: \.self) { resolution in
-					Button(action: {
-						changeResolution(res: resolution)
-					}) {
-						if resolution.width == dataModel.resolutionX && resolution.height == dataModel.resolutionY {
-							Label(resolution.desc, systemImage: "checkmark")
-						} else {
-							Text(resolution.desc)
-						}
-					}
+					Text(resolution.desc).tag(Optional(resolution))
 				}
-			} label: {
-				Label("Resolution", systemImage: "aspectratio")
 			}
 
-			Menu {
-				Button(action: {
-					changeBitRate(bitrate: 0)
-				}) {
-					if settingsStore.bitrate == 0 {
-						Label("Host Default", systemImage: "checkmark")
-					} else {
-						Text("Host Default")
-					}
-				}
+			StreamMenuPicker("Bitrate", systemImage: "speedometer", selection: Binding(get: { settingsStore.bitrate }, set: { changeBitRate(bitrate: $0) })) {
+				Text("Host Default").tag(0)
 				ForEach(bitrates, id: \.self) { bitrate in
-					Button(action: {
-						changeBitRate(bitrate: bitrate)
-					}) {
-						if bitrate == settingsStore.bitrate {
-							Label("\(bitrate) Mbps", systemImage: "checkmark")
-						} else {
-							Text("\(bitrate) Mbps")
-						}
-					}
+					Text("\(bitrate) Mbps").tag(bitrate)
 				}
-			} label: {
-				Label("Bitrate", systemImage: "speedometer")
 			}
 
 			if dataModel.displayConfigs.count > 1 {
-				Menu {
-					Button(action: {
-						changeDisplay(displayId: "none")
-					}) {
-						if dataModel.output == "none" {
-							Label("Auto", systemImage: "checkmark")
-						} else {
-							Text("Auto")
-						}
-					}
+				StreamMenuPicker("Switch Display", systemImage: "display", selection: Binding(get: { dataModel.output }, set: { changeDisplay(displayId: $0) })) {
+					Text("Auto").tag("none")
 					ForEach(dataModel.displayConfigs, id: \.self) { config in
-						Button(action: {
-							changeDisplay(displayId: config.id)
-						}) {
-							if dataModel.output == config.id {
-								Label("\(config.name) \(config.adapterName)", systemImage: "checkmark")
-							} else {
-								Text("\(config.name) \(config.adapterName)")
-							}
-						}
+						Text("\(config.name) \(config.adapterName)").tag(config.id)
 					}
-				} label: {
-					Label("Switch Display", systemImage: "display")
 				}
 			}
 		}
@@ -484,16 +531,64 @@ struct ParsecView: View {
 		}
 
 		Section {
-			Button(action: disableOverlay) {
+			Button(action: { closeMenu(then: .hideButtons) }) {
 				Label("Hide Buttons", systemImage: "eye.slash")
 			}
 		}
 
 		Section {
-			Button(role: .destructive, action: { disconnect() }) {
+			Button(role: .destructive, action: { closeMenu(then: .disconnect) }) {
 				Label("Disconnect", systemImage: "power")
 			}
 		}
+	}
+
+	func toggleMenu() {
+		if showMenuPopover {
+			showMenuPopover = false
+			return
+		}
+		// still animating out, let it go before opening again
+		guard !menuPresented else { return }
+		keyboardUpBeforeMenu = showKeyboard
+		ParsecView.getHostUserData()
+		showMenuPopover = true
+	}
+
+	func closeMenu(then action: PendingMenuAction) {
+		pendingMenuAction = action
+		showMenuPopover = false
+	}
+
+	// runs once the popover has gone: deferred actions first, then the keyboard goes back to the stream
+	func menuDidDismiss() {
+		// the stream is already being torn down, nothing left to restore
+		guard !streamEnded else { return }
+		let action = pendingMenuAction
+		pendingMenuAction = nil
+		let restoreKeyboard = keyboardUpBeforeMenu || showKeyboard
+		keyboardUpBeforeMenu = false
+		switch action {
+		case .disconnect:
+			disconnect()
+			return
+		case .hideButtons:
+			disableOverlay()
+		case nil:
+			break
+		}
+		// an alert held back while the popover was up goes now, on the next turn so the popover has fully let go.
+		// the keyboard stays down under it
+		if pendingDCAlert {
+			DispatchQueue.main.async {
+				guard !streamEnded else { return }
+				showDCAlert = true
+				pendingDCAlert = false
+			}
+			return
+		}
+		guard restoreKeyboard else { return }
+		parsecViewController.setKeyboardVisible(true)
 	}
 
 	func post() {
@@ -554,19 +649,27 @@ struct ParsecView: View {
 
 		let overlayHidden = $hideOverlay
 		let keyboardButtonHidden = $hideKeyboardButton
-		let menuAttention = $menuAttention
-		// a native Menu cant be opened from code, so the swipe brings the button back and lights it up
+		let menuShown = $showMenuPopover
+		let menuOnScreen = $menuPresented
+		let ended = $streamEnded
+		let keyboardUpBeforeMenu = $keyboardUpBeforeMenu
+        let keyboardShown = $showKeyboard
+		// the swipe brings the buttons back and opens the menu, like the old panel did
 		parsecViewController.onMenuEdgeSwipe = {
+			let wasHidden = overlayHidden.wrappedValue
 			overlayHidden.wrappedValue = false
 			keyboardButtonHidden.wrappedValue = !SettingsHandler.showKeyboardButton
-			withAnimation { menuAttention.wrappedValue = true }
-			DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-				withAnimation { menuAttention.wrappedValue = false }
-			}
 			ParsecView.getHostUserData()
+			// showMenuPopover is already false while the popover animates out, so also check it is off screen
+			guard !menuShown.wrappedValue, !menuOnScreen.wrappedValue, !ended.wrappedValue else { return }
+			keyboardUpBeforeMenu.wrappedValue = keyboardShown.wrappedValue
+			// a button that just came back needs a layout pass before it can anchor the popover
+			DispatchQueue.main.asyncAfter(deadline: .now() + (wasHidden ? 0.15 : 0)) {
+				guard !menuOnScreen.wrappedValue, !ended.wrappedValue else { return }
+				menuShown.wrappedValue = true
+			}
 		}
 
-        let keyboardShown = $showKeyboard
         parsecViewController.onKeyboardVisibilityChanged = { visible in
             keyboardShown.wrappedValue = visible
         }
@@ -641,7 +744,14 @@ struct ParsecView: View {
 	}*/
 
 	func disconnect(isBackgroundDisconnect: Bool = false) {
+		// popover Disconnect and a stream dying mid-dismiss can both land here, tear down once
+		guard !streamEnded else { return }
 		appNote("[stream] disconnect\(isBackgroundDisconnect ? " in the background" : "")")
+		streamEnded = true
+		pendingMenuAction = nil
+		keyboardUpBeforeMenu = false
+		pendingDCAlert = false
+		showMenuPopover = false
 		if !isBackgroundDisconnect {
 			ParsecBackgroundManager.shared.endSession()
 		}
@@ -731,5 +841,106 @@ private extension View {
 		} else {
 			return self
 		}
+	}
+
+	// in-stream chrome sits on Liquid Glass on iOS 26, a system material before that
+	@ViewBuilder
+	func streamChrome<S: Shape>(_ shape: S, material: Material = .regularMaterial) -> some View {
+		if #available(iOS 26, *) {
+			self.glassEffect(.regular, in: shape)
+		} else {
+			self.background(material, in: shape)
+		}
+	}
+
+	// keeps the menu an anchored bubble on iPhone, older systems fall back to a sheet that needs a way out
+	@ViewBuilder
+	func compactPopover(done: @escaping () -> Void) -> some View {
+		if #available(iOS 16.4, *) {
+			self.presentationCompactAdaptation(.popover)
+		} else {
+			NavigationView {
+				self
+					.navigationTitle("Menu")
+					.navigationBarTitleDisplayMode(.inline)
+					.toolbar {
+						ToolbarItem(placement: .confirmationAction) {
+							Button("Done", action: done)
+						}
+					}
+			}
+			.navigationViewStyle(.stack)
+		}
+	}
+
+	// on iOS 26 the popover is glass, let it show through the list
+	@ViewBuilder
+	func popoverListBackground() -> some View {
+		if #available(iOS 26, *) {
+			self.scrollContentBackground(.hidden)
+		} else {
+			self
+		}
+	}
+
+	// reports the list's full content height so the popover can size to it
+	@ViewBuilder
+	func fitsContentHeight(_ height: Binding<CGFloat>) -> some View {
+		if #available(iOS 18, *) {
+			self.onScrollGeometryChange(for: CGFloat.self) { geometry in
+				(geometry.contentSize.height + geometry.contentInsets.top + geometry.contentInsets.bottom).rounded(.up)
+			} action: { _, measured in
+				if measured > 0, abs(measured - height.wrappedValue) > 1 {
+					height.wrappedValue = measured
+				}
+			}
+		} else {
+			self
+		}
+	}
+}
+
+// spacing for the floating stream chrome, shared so the pieces line up with each other
+private enum StreamChrome {
+	// gap between the screen edge and the corner buttons
+	static let edge: CGFloat = 16
+	// footprint of a corner button, the glass circle on iOS 26 and the square below
+	static let buttonSize: CGFloat = 48
+	static let spacing: CGFloat = 8
+	// popover height before the list has been measured, and for good below iOS 18
+	static let menuHeightEstimate: CGFloat = 520
+}
+
+/// A menu Picker row with an icon label. iOS 15 menu pickers in a List drop their label, so it is laid out by hand there.
+private struct StreamMenuPicker<Value: Hashable, Options: View>: View {
+	let title: String
+	let systemImage: String
+	@Binding var selection: Value
+	let options: () -> Options
+
+	init(_ title: String, systemImage: String, selection: Binding<Value>, @ViewBuilder options: @escaping () -> Options) {
+		self.title = title
+		self.systemImage = systemImage
+		_selection = selection
+		self.options = options
+	}
+
+	var body: some View {
+		if #available(iOS 16, *) {
+			picker
+		} else {
+			HStack {
+				Label(title, systemImage: systemImage)
+				Spacer()
+				picker.labelsHidden()
+			}
+		}
+	}
+
+	private var picker: some View {
+		Picker(selection: $selection, content: options) {
+			Label(title, systemImage: systemImage)
+		}
+		.pickerStyle(.menu)
 	}
 }
