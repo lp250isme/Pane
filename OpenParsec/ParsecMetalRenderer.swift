@@ -111,10 +111,10 @@ class ParsecMetalRenderer: NSObject, MTKViewDelegate {
 
 	func draw(in view: MTKView) {
 		// height too: fold / tabletop changes can keep the width
-		let frameSize = view.frame.size
-		if abs(frameSize.width - lastSize.width) > 0.1 || abs(frameSize.height - lastSize.height) > 0.1 || abs(view.contentScaleFactor - lastScale) > 0.01 {
-			CParsec.setFrame(frameSize.width, frameSize.height, view.contentScaleFactor)
-			lastSize = frameSize
+		let viewSize = view.frame.size
+		if abs(viewSize.width - lastSize.width) > 0.1 || abs(viewSize.height - lastSize.height) > 0.1 || abs(view.contentScaleFactor - lastScale) > 0.01 {
+			CParsec.setFrame(viewSize.width, viewSize.height, view.contentScaleFactor)
+			lastSize = viewSize
 			lastScale = view.contentScaleFactor
 		}
 		let size = CGSize(width: (view.bounds.width * view.contentScaleFactor).rounded(), height: (view.bounds.height * view.contentScaleFactor).rounded())
