@@ -264,24 +264,11 @@ class ParsecSDKBridge: ParsecService {
 			mouseInfo.mouseY = Int32(height / 2)
 			return
 		}
-		let moved = carryCursor(CGPoint(x: CGFloat(mouseInfo.mouseX), y: CGFloat(mouseInfo.mouseY)), from: oldSize, to: CGSize(width: width, height: height))
+		let moved = carryCursor(CGPoint(x: CGFloat(mouseInfo.mouseX), y: CGFloat(mouseInfo.mouseY)), from: oldSize, to: CGSize(width: width, height: height), host: CGSize(width: CGFloat(hostWidth), height: CGFloat(hostHeight)))
 		mouseInfo.mouseX = Int32(moved.x.rounded())
 		mouseInfo.mouseY = Int32(moved.y.rounded())
 	}
 
-	private func carryCursor(_ point: CGPoint, from old: CGSize, to new: CGSize) -> CGPoint {
-		let host = CGSize(width: CGFloat(hostWidth), height: CGFloat(hostHeight))
-		guard host.width > 0, host.height > 0 else {
-			return CGPoint(x: point.x * new.width / old.width, y: point.y * new.height / old.height)
-		}
-		let oldScale = min(old.width / host.width, old.height / host.height)
-		let newScale = min(new.width / host.width, new.height / host.height)
-		let hostX = (point.x - (old.width - host.width * oldScale) / 2) / oldScale
-		let hostY = (point.y - (old.height - host.height * oldScale) / 2) / oldScale
-		let x = hostX * newScale + (new.width - host.width * newScale) / 2
-		let y = hostY * newScale + (new.height - host.height * newScale) / 2
-		return CGPoint(x: min(max(x, 0), new.width), y: min(max(y, 0), new.height))
-	}
 
 	// timeout in ms, 16 == 60 FPS, 8 == 120 FPS, etc.
 	func renderGLFrame(timeout: UInt32 = 16) {
@@ -698,9 +685,9 @@ class ParsecSDKBridge: ParsecService {
 		var videoConfig = ParsecUserDataVideoConfig()
 		// a Mac host streams the display at its own size (parsecd has no display-mode API), so send its default 0x0
 		// rather than a size it can't honour
-		let keepMode = DataManager.model.hostOS == macHostOS
-		videoConfig.video[0].resolutionX = keepMode ? 0 : DataManager.model.resolutionX
-		videoConfig.video[0].resolutionY = keepMode ? 0 : DataManager.model.resolutionY
+		let size = requestedResolution(hostOS: DataManager.model.hostOS, picked: (DataManager.model.resolutionX, DataManager.model.resolutionY))
+		videoConfig.video[0].resolutionX = size.x
+		videoConfig.video[0].resolutionY = size.y
 		videoConfig.video[0].encoderMaxBitrate = DataManager.model.bitrate
 		videoConfig.video[0].fullFPS = DataManager.model.constantFps
 		videoConfig.video[0].output = DataManager.model.output

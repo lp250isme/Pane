@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "27E61A8D292965FC00FF6563"
-               BuildableName = "OpenParsec.app"
-               BlueprintName = "OpenParsec"
-               ReferencedContainer = "container:OpenParsec.xcodeproj">
+               BuildableName = "Pane.app"
+               BlueprintName = "Pane"
+               ReferencedContainer = "container:Pane.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -45,9 +45,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "27E61A8D292965FC00FF6563"
-            BuildableName = "OpenParsec.app"
-            BlueprintName = "OpenParsec"
-            ReferencedContainer = "container:OpenParsec.xcodeproj">
+            BuildableName = "Pane.app"
+            BlueprintName = "Pane"
+            ReferencedContainer = "container:Pane.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -62,9 +62,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "27E61A8D292965FC00FF6563"
-            BuildableName = "OpenParsec.app"
-            BlueprintName = "OpenParsec"
-            ReferencedContainer = "container:OpenParsec.xcodeproj">
+            BuildableName = "Pane.app"
+            BlueprintName = "Pane"
+            ReferencedContainer = "container:Pane.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

@@ -2,7 +2,7 @@
 // 圖形是半開的兩片霧面玻璃窗格（摺疊機的兩半，內緣較高像朝你打開）。
 // 淺色＝白底深色玻璃，深色＝黑底淺色玻璃，tinted 給系統上色。
 // 另出圓角版 IconTransparent（淺/深兩張）給 App 內（登入頁、選單鈕、頭像佔位）用。
-// 用法：swift scripts/make-icon.swift OpenParsec/Assets.xcassets
+// 用法：swift scripts/make-icon.swift Pane/Assets.xcassets
 import AppKit
 
 let out = CommandLine.arguments.dropFirst().first ?? "."

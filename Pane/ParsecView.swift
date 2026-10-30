@@ -783,7 +783,7 @@ struct ParsecView: View {
 		guard menu || keyboard else { return }
 		if menu { menuSwipeHintShown = true }
 		if keyboard { keyboardHintShown = true }
-		let text = [menu ? "Swipe from the left edge to bring the menu back" : nil, keyboard ? "Tap with three fingers to show or hide the keyboard" : nil].compactMap { $0 }.joined(separator: "\n")
+		let text = [menu ? String(localized: "Swipe from the left edge to bring the menu back") : nil, keyboard ? String(localized: "Tap with three fingers to show or hide the keyboard") : nil].compactMap { $0 }.joined(separator: "\n")
 		withAnimation { hint = text }
 		DispatchQueue.main.asyncAfter(deadline: .now() + (menu && keyboard ? 6 : 4)) {
 			withAnimation { hint = nil }

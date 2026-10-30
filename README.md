@@ -1,4 +1,4 @@
-<p align="center"><img src="OpenParsec/Assets.xcassets/AppIcon.appiconset/AppIcon.png" alt="Pane" width="128"></p>
+<p align="center"><img src="Pane/Assets.xcassets/AppIcon.appiconset/AppIcon.png" alt="Pane" width="128"></p>
 
 # Pane — 支援 iPhone Duo 的 Parsec 用戶端
 
@@ -10,7 +10,7 @@
 
 ## English
 
-Pane is an open-source iOS / iPadOS client for [Parsec](https://parsec.app), written in Swift with SwiftUI and the Parsec SDK. It lets you stream and control your computer from an iPhone, iPad or iPhone Duo. It started as a fork of [hugeBlack/OpenParsec](https://github.com/hugeBlack/OpenParsec) and adds foldable support, a native iOS interface and many fixes.
+Pane is an open-source iOS / iPadOS client for [Parsec](https://parsec.app) by kv, written in Swift with SwiftUI and the Parsec SDK. It lets you stream and control your computer from an iPhone, iPad or iPhone Duo. It started as a fork of [hugeBlack/OpenParsec](https://github.com/hugeBlack/OpenParsec) and adds foldable support, a native iOS interface and many fixes.
 
 ### Features
 
@@ -98,15 +98,18 @@ This is intended. Pane keeps the host's aspect ratio instead of stretching it or
 ### Building from source
 
 1. Put the Parsec SDK framework in `Frameworks/` (copy it or symlink it).
-2. Open `OpenParsec.xcodeproj` and build the `OpenParsec` scheme.
+2. Open `Pane.xcodeproj` and build the `Pane` scheme.
 3. CI builds with Xcode 26. The iOS 27 foldable code compiles only with the Swift 6.4 toolchain or newer.
 
-To regenerate the app icon, run `swift scripts/make-icon.swift OpenParsec/Assets.xcassets`. Strings live in `OpenParsec/Localizable.xcstrings`.
+Run the unit tests with `swift test` (no simulator needed). To regenerate the app icon, run `swift scripts/make-icon.swift Pane/Assets.xcassets`. Strings live in `Pane/Localizable.xcstrings`.
 
 ### Changes from OpenParsec
 
 Modified from hugeBlack/OpenParsec starting October 2026 (GPLv3 section 5a notice):
 - iPhone Duo and foldable support
+- Direct touch no longer leaks a left click at the start of a two-finger gesture, or re-clicks when the screen rotates or folds under a held finger
+- A connection stuck in connecting is retried once and then given up (about 90 seconds at most); an expired Parsec session signs you out cleanly
+- Unit tests (`swift test`)
 - Native iOS UI, light and dark themes, English and Traditional Chinese
 - A new stream menu with bitrate, display switching and resolution
 - Mac hosts get no resolution request and no resolution choice
@@ -115,7 +118,7 @@ Modified from hugeBlack/OpenParsec starting October 2026 (GPLv3 section 5a notic
 
 ### Credit and license
 
-Based on [OpenParsec](https://github.com/hugeBlack/OpenParsec) by hugeBlack and its contributors. Licensed under the GNU GPL v3, see [LICENSE](LICENSE).
+Pane is made by kv and is based on [OpenParsec](https://github.com/hugeBlack/OpenParsec) by hugeBlack and its contributors, who keep the copyright to their code. Pane and kv's changes are released under the same GNU GPL v3, see [LICENSE](LICENSE). You are free to use, change and share Pane under that license; anything you distribute that is based on it has to stay under the GPL v3 as well.
 
 Parsec and the Parsec logo are trademarks of their owner. Pane is not affiliated with or endorsed by Parsec. The Parsec SDK binary is under Parsec's own terms.
 
@@ -123,7 +126,7 @@ Parsec and the Parsec logo are trademarks of their owner. Pane is not affiliated
 
 ## 繁體中文
 
-Pane 是開源的 iOS / iPadOS [Parsec](https://parsec.app) 用戶端，以 Swift、SwiftUI 與 Parsec SDK 撰寫，讓你用 iPhone、iPad 或 iPhone Duo 串流並操作你的電腦。它源自 [hugeBlack/OpenParsec](https://github.com/hugeBlack/OpenParsec) 的分支，加入摺疊機支援、原生 iOS 介面和許多修正。
+Pane 是 kv 開發的開源 iOS / iPadOS [Parsec](https://parsec.app) 用戶端，以 Swift、SwiftUI 與 Parsec SDK 撰寫，讓你用 iPhone、iPad 或 iPhone Duo 串流並操作你的電腦。它源自 [hugeBlack/OpenParsec](https://github.com/hugeBlack/OpenParsec) 的分支，加入摺疊機支援、原生 iOS 介面和許多修正。
 
 ### 功能
 
@@ -211,15 +214,18 @@ Bundle ID 跟 OpenParsec 相同，所以 Pane 會直接覆蓋已安裝的 OpenPa
 ### 從原始碼編譯
 
 1. 把 Parsec SDK framework 放進 `Frameworks/`（複製或 symlink）。
-2. 打開 `OpenParsec.xcodeproj`，編譯 `OpenParsec` scheme。
+2. 打開 `Pane.xcodeproj`，編譯 `Pane` scheme。
 3. CI 用 Xcode 26 編譯。iOS 27 的摺疊機程式碼只有 Swift 6.4 以上的工具鏈才會編進去。
 
-要重新產生 App icon，執行 `swift scripts/make-icon.swift OpenParsec/Assets.xcassets`。介面字串在 `OpenParsec/Localizable.xcstrings`。
+執行 `swift test` 跑單元測試（不需要模擬器）。要重新產生 App icon，執行 `swift scripts/make-icon.swift Pane/Assets.xcassets`。介面字串在 `Pane/Localizable.xcstrings`。
 
 ### 與 OpenParsec 的差異
 
 2026 年 10 月起由 hugeBlack/OpenParsec 修改而來（GPLv3 第 5a 條修改聲明）：
 - iPhone Duo 與摺疊機支援
+- 直接觸控在雙指手勢開頭不會多點一下左鍵，手指按著時旋轉或摺疊也不會再點一次
+- 卡在「連線中」會重試一次後放棄（最長約 90 秒）；Parsec 登入過期會乾淨地登出
+- 單元測試（`swift test`）
 - 原生 iOS 介面、亮暗主題、英文與繁體中文
 - 新的串流選單，含碼率、切換螢幕與解析度
 - Mac 主機不送解析度、隱藏解析度選項
@@ -228,6 +234,6 @@ Bundle ID 跟 OpenParsec 相同，所以 Pane 會直接覆蓋已安裝的 OpenPa
 
 ### 致謝與授權
 
-本專案基於 hugeBlack 與其他貢獻者的 [OpenParsec](https://github.com/hugeBlack/OpenParsec)，以 GNU GPL v3 授權，見 [LICENSE](LICENSE)。
+Pane 由 kv 開發，基於 hugeBlack 與其他貢獻者的 [OpenParsec](https://github.com/hugeBlack/OpenParsec)，原始程式碼的著作權仍屬於他們。Pane 與 kv 的修改同樣以 GNU GPL v3 授權釋出，見 [LICENSE](LICENSE)。你可以依這份授權自由使用、修改與散布 Pane；若散布以它為基礎的作品，也必須同樣以 GPL v3 授權。
 
 Parsec 名稱與標誌是其所有者的商標，Pane 與 Parsec 官方沒有關聯，也未經其背書。Parsec SDK 二進位檔適用 Parsec 自己的條款。

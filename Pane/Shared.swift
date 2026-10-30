@@ -99,9 +99,6 @@ class SharedModel: ObservableObject {
 	}
 }
 
-// the hostOS a Mac host reports (parsecd answers getVideoConfig with a constant 2)
-let macHostOS = 2
-
 class DataManager {
 	static let model = SharedModel()
 }

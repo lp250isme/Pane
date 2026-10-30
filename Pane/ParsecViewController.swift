@@ -63,6 +63,10 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	var cursorContentPos: CGPoint = .zero
 	var isDragging = false
 	var twoFingerResidual = false       // leftover finger after a 2-finger gesture; inert until full lift
+	var waitForLift = false             // touches were flushed (rotate, fold) with fingers down; ignore them until all lift
+	var waitForLiftSince: CFTimeInterval = 0
+	var directClick = DirectClick()     // direct mode's left button, held back a beat in case a second finger lands
+	var directPressTimer: DispatchWorkItem?
 	var activeTouches: [UITouch] = []   // ordered; first two drive pinch / scroll
 	var touchOrigins: [UITouch: CGPoint] = [:]   // begin location per touch, for ghost-sweep movement test
 
@@ -629,7 +633,7 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	func setPanHandleAxes() {
 		guard let handle = panHandle, !handle.isHidden else { return }
 		let zoomed = scrollView.zoomScale > 1.01
-		let label = zoomed ? "Move screen in any direction" : "Move screen up or down"
+		let label = zoomed ? String(localized: "Move screen in any direction") : String(localized: "Move screen up or down")
 		guard handle.accessibilityLabel != label else { return }
 		handle.image = UIImage(systemName: zoomed ? "arrow.up.and.down.and.arrow.left.and.right" : "arrow.up.and.down")
 		handle.accessibilityLabel = label
@@ -744,6 +748,12 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 	// gestures never fight. No UIScrollView gesture recognizer is in the loop.
 
 	func parsecTouchesUpdated(_ touches: Set<UITouch>, moved: Bool) {
+		// fingers still down from before a flush must not start a fresh click where they now are
+		if waitForLift {
+			// a lift the system swallowed would otherwise lock touch out, so give up waiting after 2 s
+			if touches.isEmpty || CACurrentMediaTime() - waitForLiftSince > 2 { waitForLift = false }
+			return
+		}
 		// half fold, direct mode: the lower half is not picture, so a touch there must not click the bottom edge
 		let touches = SettingsHandler.cursorMode == .direct && scrollView.frame != view.bounds
 			? touches.filter { scrollView.frame.contains($0.location(in: view)) } : touches
@@ -805,6 +815,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 			}
 		} else if new >= 2 {
 			releaseClickHoldIfNeeded()   // can't keep the button held during a two-finger gesture
+			cancelDirectPress()          // the first finger was the start of this gesture, not a click
 			if isDragging { endCursorIfNeeded(); isDragging = false }
 			beginTwoFinger()
 		}
@@ -823,7 +834,10 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 	private func flushAllTouches() {
 		stopMomentum()
 		releaseClickHoldIfNeeded()
+		cancelDirectPress()
 		endCursorIfNeeded()
+		waitForLift = !activeTouches.isEmpty
+		waitForLiftSince = CACurrentMediaTime()
 		isDragging = false
 		twoFingerResidual = false
 		twoFingerMode = .undecided
@@ -841,14 +855,36 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 				CParsec.sendMousePosition(Int32(cursorContentPos.x), Int32(cursorContentPos.y))
 				positionCursorOverlay()
 			}
+			// the press waits a beat: a second finger landing in that time makes this a two-finger
+			// gesture (right click, scroll, zoom), not a stray left click
+			directClick.begin()
+			let timer = DispatchWorkItem { [weak self] in self?.sendDirectPress() }
+			directPressTimer = timer
+			DispatchQueue.main.asyncAfter(deadline: .now() + 0.06, execute: timer)
+		}
+	}
+
+	private func sendDirectPress() {
+		directPressTimer?.cancel()
+		directPressTimer = nil
+		if directClick.press() {
 			CParsec.sendMouseClickMessage(ParsecMouseButton.init(rawValue: 1), true)
 		}
 	}
 
+	private func cancelDirectPress() {
+		directPressTimer?.cancel()
+		directPressTimer = nil
+		directClick.cancel()
+	}
+
 	private func endCursorIfNeeded() {
-		if isDragging && SettingsHandler.cursorMode == .direct {
-			CParsec.sendMouseClickMessage(ParsecMouseButton.init(rawValue: 1), false)
-		}
+		guard isDragging && SettingsHandler.cursorMode == .direct else { return }
+		directPressTimer?.cancel()
+		directPressTimer = nil
+		let (press, release) = directClick.lift()
+		if press { CParsec.sendMouseClickMessage(ParsecMouseButton.init(rawValue: 1), true) }
+		if release { CParsec.sendMouseClickMessage(ParsecMouseButton.init(rawValue: 1), false) }
 	}
 
 	private func beginTwoFinger() {
@@ -896,6 +932,11 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 
 		if SettingsHandler.cursorMode == .direct {
 			cursorContentPos = clampToContent(contentView.convert(loc, from: view))
+			// a real drag can't wait for the held-back press
+			if directClick.pending && cursorDidMoveThisTouch {
+				CParsec.sendMousePosition(Int32(cursorContentPos.x), Int32(cursorContentPos.y))
+				sendDirectPress()
+			}
 		} else {
 			// Relative finger movement, predicted locally; sensitivity scales down with zoom so the
 			// cursor tracks the visible finger.
@@ -1439,7 +1480,7 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 		let doneButton = UIButton(type: .system)
 		doneButton.frame = CGRect(x: toolbarBackground.bounds.width - 70, y: 0, width: 60, height: 44)
 		doneButton.autoresizingMask = [.flexibleLeftMargin]
-		doneButton.setTitle("Done", for: .normal)
+		doneButton.setTitle(String(localized: "Done"), for: .normal)
 		doneButton.addTarget(self, action: #selector(doneTapped), for: .touchUpInside)
 
 		let handle = UIImageView(image: UIImage(systemName: "arrow.up.and.down"))
@@ -1449,7 +1490,7 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 		handle.isUserInteractionEnabled = true
 		handle.isHidden = true
 		handle.isAccessibilityElement = true
-		handle.accessibilityLabel = "Move screen up or down"
+		handle.accessibilityLabel = String(localized: "Move screen up or down")
 		handle.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(handlePanHandle(_:))))
 		let handleDoubleTap = UITapGestureRecognizer(target: self, action: #selector(handlePanHandleDoubleTap(_:)))
 		handleDoubleTap.numberOfTapsRequired = 2

@@ -176,6 +176,16 @@
         }
       }
     },
+    "Based on OpenParsec by hugeBlack and contributors, licensed under the GNU GPL v3.": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "基於 hugeBlack 與其他貢獻者的 OpenParsec，以 GNU GPL v3 授權。"
+          }
+        }
+      }
+    },
     "Bitrate": {
       "localizations": {
         "zh-Hant": {
@@ -207,6 +217,7 @@
       }
     },
     "Client Resolution": {
+      "extractionState": "manual",
       "localizations": {
         "zh-Hant": {
           "stringUnit": {
@@ -620,6 +631,7 @@
       }
     },
     "Host Resolution": {
+      "extractionState": "manual",
       "localizations": {
         "zh-Hant": {
           "stringUnit": {
@@ -892,6 +904,26 @@
         }
       }
     },
+    "Move screen in any direction": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "往任意方向移動畫面"
+          }
+        }
+      }
+    },
+    "Move screen up or down": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上下移動畫面"
+          }
+        }
+      }
+    },
     "Network not supported": {
       "localizations": {
         "zh-Hant": {
@@ -996,6 +1028,9 @@
       }
     },
     "Pane": {
+      "shouldTranslate": false
+    },
+    "Pane by kv": {
       "shouldTranslate": false
     },
     "Parsec closed the connection": {
@@ -1348,12 +1383,32 @@
         }
       }
     },
+    "Swipe from the left edge to bring the menu back": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "從左側邊緣滑入就能叫回選單"
+          }
+        }
+      }
+    },
     "Switch Display": {
       "localizations": {
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
             "value": "切換螢幕"
+          }
+        }
+      }
+    },
+    "Tap with three fingers to show or hide the keyboard": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "三指點一下可以叫出或收起鍵盤"
           }
         }
       }
@@ -1414,6 +1469,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "兩步驟驗證"
+          }
+        }
+      }
+    },
+    "Unknown commit": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未知 commit"
+          }
+        }
+      }
+    },
+    "Unknown version": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未知版本"
+          }
+        }
+      }
+    },
+    "Version %@-%@": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "版本 %1$@-%2$@"
           }
         }
       }

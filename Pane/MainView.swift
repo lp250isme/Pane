@@ -632,7 +632,7 @@ struct MainView: View {
 				if #available(iOS 26, *) {
 					Text("Hosts")
 				} else {
-					Text(refreshTime.isEmpty ? "Hosts" : hostCountStr)
+					Text(refreshTime.isEmpty ? String(localized: "Hosts") : hostCountStr)
 				}
 			} footer: {
 				if isRefreshing {
@@ -796,7 +796,7 @@ struct MainView: View {
 						guard let statusCode = (response as? HTTPURLResponse)?.statusCode else { return }
 						if statusCode == 401 {
 							refreshError = nil
-							sessionExpired = true
+							expireSession()
 							return
 						}
 						let decoder = JSONDecoder()
@@ -859,7 +859,7 @@ struct MainView: View {
 					if let data = data {
 						guard let statusCode = (response as? HTTPURLResponse)?.statusCode else { return }
 						if statusCode == 401 {
-							sessionExpired = true
+							expireSession()
 							return
 						}
 						let decoder = JSONDecoder()
@@ -900,7 +900,7 @@ struct MainView: View {
 					if let data = data {
 						guard let statusCode = (response as? HTTPURLResponse)?.statusCode else { return }
 						if statusCode == 401 {
-							sessionExpired = true
+							expireSession()
 							return
 						}
 						let decoder = JSONDecoder()
@@ -995,7 +995,14 @@ struct MainView: View {
 			return
 		}
 
-		if status == PARSEC_CONNECTING { return } // wait
+		if status == PARSEC_CONNECTING {
+			// a connection that never gets anywhere (network gone mid-handshake) would spin forever
+			if connectPolls >= 45 {
+				appNote("[connect] still connecting after \(connectPolls) polls, retried \(retryingConnect)")
+				retryOrGiveUp(who)
+			}
+			return
+		}
 
 		if status == CONNECT_WRN_APPROVAL {
 			if approvalStartedAt == nil {
@@ -1058,6 +1065,16 @@ struct MainView: View {
 		CParsec.disconnect()
 
 		pollTimer?.invalidate()
+	}
+
+	// a dead session: the stored one would come back on every launch, and the old host list still offers Connect
+	func expireSession() {
+		removeFromKeychain(key: GLBDataModel.shared.SessionKeyChainKey)
+		NetworkHandler.clinfo = nil
+		hosts = []
+		lastHostShown = nil
+		ParsecBackgroundManager.shared.disableAutoReconnect()
+		sessionExpired = true
 	}
 
 	func logout() {

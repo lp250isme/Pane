@@ -68,7 +68,7 @@ def update_json_file_release(json_file, latest_release):
     download_url = None
     size = None
     for asset in assets:
-        if asset["name"] == f"OpenParsec.ipa":
+        if asset["name"] == f"Pane.ipa":
             download_url = asset["browser_download_url"]
             size = asset["size"]
             break
@@ -106,14 +106,14 @@ def update_json_file_release(json_file, latest_release):
     date_string = date_obj.strftime("%d/%m/%y")
     news_entry = {
         "appID": "com.aigch.OpenParsec",
-        "caption": f"Update of OpenParsec just got released!",
+        "caption": f"Update of Pane just got released!",
         "date": latest_release["published_at"],
         "identifier": news_identifier,
         "imageURL": "https://raw.githubusercontent.com/hugeBlack/OpenParsec/main/screenshots/release.png",
         "notify": True,
         "tintColor": "#0784FC",
-        "title": f"{full_version} - OpenParsec  {date_string}",
-        "url": f"https://github.com/hugeBlack/OpenParsec/releases/tag/{tag}"
+        "title": f"{full_version} - Pane  {date_string}",
+        "url": f"https://github.com/lp250isme/Pane/releases/tag/{tag}"
     }
 
     news_entry_exists = any(item["identifier"] == news_identifier for item in data["news"])
@@ -145,7 +145,7 @@ def update_json_file_nightly(json_file, nightly_release):
 
     app = data["apps"][0]
 
-    with open("OpenParsec/Info.plist", 'rb') as infile:
+    with open("Pane/Info.plist", 'rb') as infile:
         info_plist = plistlib.load(infile)
     full_version = info_plist["CFBundleShortVersionString"]
     tag = nightly_release["tag_name"]
@@ -157,7 +157,7 @@ def update_json_file_nightly(json_file, nightly_release):
     commit_sha = os.environ.get("commit_sha", "")[:7]
     # the headline only, a commit body would spill into the AltStore listing
     commit_msg = (os.environ.get("commit_msg", "").strip().splitlines() or [""])[0]
-    repo = os.environ.get("GITHUB_REPOSITORY", "hugeBlack/OpenParsec")
+    repo = os.environ.get("GITHUB_REPOSITORY", "lp250isme/Pane")
     build_number = os.environ.get("BUILD_NUMBER", "")
 
     description = f"""\
@@ -172,13 +172,13 @@ This is a nightly release [created automatically with GitHub Actions workflow]({
     download_url = None
     size = None
     for asset in assets:
-        if asset["name"] == f"OpenParsec.ipa":
+        if asset["name"] == f"Pane.ipa":
             download_url = asset["browser_download_url"]
             size = asset["size"]
             break
     # the new IPA isn't uploaded yet; measure the one this run built
-    if os.path.exists("OpenParsec.ipa"):
-        size = os.path.getsize("OpenParsec.ipa")
+    if os.path.exists("Pane.ipa"):
+        size = os.path.getsize("Pane.ipa")
 
     if download_url is None or size is None:
         print("Error: IPA file not found in release assets.")
@@ -222,7 +222,7 @@ This is a nightly release [created automatically with GitHub Actions workflow]({
 
 
 def main():
-    repo_url = os.environ.get("GITHUB_REPOSITORY", "hugeBlack/OpenParsec")
+    repo_url = os.environ.get("GITHUB_REPOSITORY", "lp250isme/Pane")
     is_nightly = "NIGHTLY_LINK" in os.environ
 
     try:

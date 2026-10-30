@@ -10,6 +10,7 @@
 		170E0A772BEF5AFF00B0EA32 /* ParsecViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 170E0A762BEF5AFF00B0EA32 /* ParsecViewController.swift */; };
 		17374D412CB8E35D00EDCEE7 /* KeyCodeTranslators.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17374D402CB8E35500EDCEE7 /* KeyCodeTranslators.swift */; };
 		17840D1D2CB639530097374B /* ParsecUserData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17840D1C2CB6394D0097374B /* ParsecUserData.swift */; };
+		A1B2C3D4E5F6A7B8C9D0E1F4 /* StreamMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F5 /* StreamMath.swift */; };
 		17CD1E032BF07BC3003D2102 /* ViewContainerPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17CD1E022BF07BC3003D2102 /* ViewContainerPatch.swift */; };
 		17EA35F72BF712A8001BE0DF /* ParsecSDKBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17EA35F62BF712A8001BE0DF /* ParsecSDKBridge.swift */; };
 		17EEB91C2BEE62BA00502A3A /* KeyBoardTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17EEB91B2BEE62BA00502A3A /* KeyBoardTest.swift */; };
@@ -63,6 +64,7 @@
 		170E0A762BEF5AFF00B0EA32 /* ParsecViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParsecViewController.swift; sourceTree = "<group>"; };
 		17374D402CB8E35500EDCEE7 /* KeyCodeTranslators.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCodeTranslators.swift; sourceTree = "<group>"; };
 		17840D1C2CB6394D0097374B /* ParsecUserData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParsecUserData.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A7B8C9D0E1F5 /* StreamMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamMath.swift; sourceTree = "<group>"; };
 		17CD1E022BF07BC3003D2102 /* ViewContainerPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewContainerPatch.swift; sourceTree = "<group>"; };
 		17EA35F62BF712A8001BE0DF /* ParsecSDKBridge.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ParsecSDKBridge.swift; sourceTree = "<group>"; };
 		17EEB91B2BEE62BA00502A3A /* KeyBoardTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyBoardTest.swift; sourceTree = "<group>"; };
@@ -70,7 +72,7 @@
 		271D14FA292EAA3600D7F1D6 /* ParsecGLKRenderer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ParsecGLKRenderer.swift; sourceTree = "<group>"; };
 		271D14FB292EAA3600D7F1D6 /* ParsecGLKViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ParsecGLKViewController.swift; sourceTree = "<group>"; };
 		274A69CE29EA07FA00F595A5 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		27899AC4292FE2A8001ACA33 /* OpenParsec-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "OpenParsec-Bridging-Header.h"; sourceTree = "<group>"; };
+		27899AC4292FE2A8001ACA33 /* Pane-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Pane-Bridging-Header.h"; sourceTree = "<group>"; };
 		27899AC5292FE2A9001ACA33 /* audio.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = audio.c; sourceTree = "<group>"; };
 		27899AC6292FE2A9001ACA33 /* audio.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = audio.h; sourceTree = "<group>"; };
 		27A267342B1AEAB700F34C63 /* SettingsHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsHandler.swift; sourceTree = "<group>"; };
@@ -82,7 +84,7 @@
 		27B23A232B1B98EF00B52F14 /* ParsecMetalViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParsecMetalViewController.swift; sourceTree = "<group>"; };
 		27B8D563292DC7A000A324AD /* CParsec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CParsec.swift; sourceTree = "<group>"; };
 		27B8D56F292DCA5800A324AD /* ParsecSDK.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ParsecSDK.framework; path = Frameworks/ParsecSDK.framework; sourceTree = SOURCE_ROOT; };
-		27E61A8E292965FC00FF6563 /* OpenParsec.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenParsec.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		27E61A8E292965FC00FF6563 /* Pane.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Pane.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		27E61A91292965FC00FF6563 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		27E61A93292965FC00FF6563 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		27E61A95292965FC00FF6563 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -125,7 +127,7 @@
 			isa = PBXGroup;
 			children = (
 				27B8D56A292DC98B00A324AD /* Frameworks */,
-				27E61A90292965FC00FF6563 /* OpenParsec */,
+				27E61A90292965FC00FF6563 /* Pane */,
 				27E61A8F292965FC00FF6563 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -134,18 +136,19 @@
 		27E61A8F292965FC00FF6563 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				27E61A8E292965FC00FF6563 /* OpenParsec.app */,
+				27E61A8E292965FC00FF6563 /* Pane.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		27E61A90292965FC00FF6563 /* OpenParsec */ = {
+		27E61A90292965FC00FF6563 /* Pane */ = {
 			isa = PBXGroup;
 			children = (
 				E76224A02F8C017700A2F86F /* ParsecBackgroundManager.swift */,
 				E762250A2F8D0A0000A2F86F /* PictureInPictureManager.swift */,
 				17374D402CB8E35500EDCEE7 /* KeyCodeTranslators.swift */,
 				17840D1C2CB6394D0097374B /* ParsecUserData.swift */,
+				A1B2C3D4E5F6A7B8C9D0E1F5 /* StreamMath.swift */,
 				27E61AA7292994B500FF6563 /* ActivityIndicator.swift */,
 				27E61A91292965FC00FF6563 /* AppDelegate.swift */,
 				27E61A97292965FD00FF6563 /* Assets.xcassets */,
@@ -162,7 +165,7 @@
 				27E61AA52929817700FF6563 /* LoginView.swift */,
 				27E61AA92929B92200FF6563 /* MainView.swift */,
 				27ED36FE292D4F9800B1BE3D /* NetworkHandler.swift */,
-				27899AC4292FE2A8001ACA33 /* OpenParsec-Bridging-Header.h */,
+				27899AC4292FE2A8001ACA33 /* Pane-Bridging-Header.h */,
 				271D14FA292EAA3600D7F1D6 /* ParsecGLKRenderer.swift */,
 				271D14FB292EAA3600D7F1D6 /* ParsecGLKViewController.swift */,
 				27B23A212B1B979C00B52F14 /* ParsecMetalRenderer.swift */,
@@ -180,7 +183,7 @@
 				27AC751729EA339B00E8CAF7 /* URLImage.swift */,
 				17CD1E022BF07BC3003D2102 /* ViewContainerPatch.swift */,
 			);
-			path = OpenParsec;
+			path = Pane;
 			sourceTree = "<group>";
 		};
 		27E61A99292965FD00FF6563 /* Preview Content */ = {
@@ -194,9 +197,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		27E61A8D292965FC00FF6563 /* OpenParsec */ = {
+		27E61A8D292965FC00FF6563 /* Pane */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 27E61AA2292965FD00FF6563 /* Build configuration list for PBXNativeTarget "OpenParsec" */;
+			buildConfigurationList = 27E61AA2292965FD00FF6563 /* Build configuration list for PBXNativeTarget "Pane" */;
 			buildPhases = (
 				27E61A8A292965FC00FF6563 /* Sources */,
 				27E61A8B292965FC00FF6563 /* Frameworks */,
@@ -208,11 +211,11 @@
 			);
 			dependencies = (
 			);
-			name = OpenParsec;
+			name = Pane;
 			packageProductDependencies = (
 			);
-			productName = OpenParsec;
-			productReference = 27E61A8E292965FC00FF6563 /* OpenParsec.app */;
+			productName = Pane;
+			productReference = 27E61A8E292965FC00FF6563 /* Pane.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -230,7 +233,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 27E61A89292965FC00FF6563 /* Build configuration list for PBXProject "OpenParsec" */;
+			buildConfigurationList = 27E61A89292965FC00FF6563 /* Build configuration list for PBXProject "Pane" */;
 			compatibilityVersion = "Xcode 9.3";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -246,7 +249,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				27E61A8D292965FC00FF6563 /* OpenParsec */,
+				27E61A8D292965FC00FF6563 /* Pane */,
 			);
 		};
 /* End PBXProject section */
@@ -314,6 +317,7 @@
 				170E0A772BEF5AFF00B0EA32 /* ParsecViewController.swift in Sources */,
 				27B23A222B1B979C00B52F14 /* ParsecMetalRenderer.swift in Sources */,
 				17840D1D2CB639530097374B /* ParsecUserData.swift in Sources */,
+				A1B2C3D4E5F6A7B8C9D0E1F4 /* StreamMath.swift in Sources */,
 				27E61A96292965FC00FF6563 /* ContentView.swift in Sources */,
 				17EA35F72BF712A8001BE0DF /* ParsecSDKBridge.swift in Sources */,
 				27ED36FF292D4F9800B1BE3D /* NetworkHandler.swift in Sources */,
@@ -464,11 +468,11 @@
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_ASSET_PATHS = "\"OpenParsec/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"Pane/Preview Content\"";
 				DEVELOPMENT_TEAM = 3C3YHUUV75;
 				ENABLE_PREVIEWS = YES;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
-				INFOPLIST_FILE = OpenParsec/Info.plist;
+				INFOPLIST_FILE = Pane/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -477,7 +481,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.aigch.OpenParsec;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				SWIFT_OBJC_BRIDGING_HEADER = "OpenParsec/OpenParsec-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "Pane/Pane-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				SYSTEM_FRAMEWORK_SEARCH_PATHS = $PROJECT_DIR/Frameworks;
@@ -495,11 +499,11 @@
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_ASSET_PATHS = "\"OpenParsec/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"Pane/Preview Content\"";
 				DEVELOPMENT_TEAM = 3C3YHUUV75;
 				ENABLE_PREVIEWS = YES;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
-				INFOPLIST_FILE = OpenParsec/Info.plist;
+				INFOPLIST_FILE = Pane/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -508,7 +512,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.aigch.OpenParsec;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				SWIFT_OBJC_BRIDGING_HEADER = "OpenParsec/OpenParsec-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "Pane/Pane-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				SYSTEM_FRAMEWORK_SEARCH_PATHS = $PROJECT_DIR/Frameworks;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -519,7 +523,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		27E61A89292965FC00FF6563 /* Build configuration list for PBXProject "OpenParsec" */ = {
+		27E61A89292965FC00FF6563 /* Build configuration list for PBXProject "Pane" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				27E61AA0292965FD00FF6563 /* Debug */,
@@ -528,7 +532,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		27E61AA2292965FD00FF6563 /* Build configuration list for PBXNativeTarget "OpenParsec" */ = {
+		27E61AA2292965FD00FF6563 /* Build configuration list for PBXNativeTarget "Pane" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				27E61AA3292965FD00FF6563 /* Debug */,

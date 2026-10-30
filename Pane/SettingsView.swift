@@ -79,7 +79,12 @@ struct SettingsForm: View {
 			} header: {
 				Text("Connection")
 			} footer: {
-				Text(Self.versionInfo)
+				// GPLv3: credit the original and name the license alongside our own name
+				VStack(alignment: .leading, spacing: 4) {
+					Text("Pane by kv")
+					Text(Self.versionInfo)
+					Text("Based on OpenParsec by hugeBlack and contributors, licensed under the GNU GPL v3.")
+				}
 			}
 		}
 		.navigationTitle("Settings")
@@ -90,9 +95,9 @@ struct SettingsForm: View {
 
 	static var versionInfo: String {
 		let info = Bundle.main.infoDictionary
-		let version = info?["CFBundleShortVersionString"] as? String ?? "Unknown version"
-		let commit = info?["GitCommitInfo"] as? String ?? "Unknown commit"
-		return "Version \(version)-\(commit)"
+		let version = info?["CFBundleShortVersionString"] as? String ?? String(localized: "Unknown version")
+		let commit = info?["GitCommitInfo"] as? String ?? String(localized: "Unknown commit")
+		return String(localized: "Version \(version)-\(commit)")
 	}
 }
 
