@@ -72,7 +72,7 @@ struct LoginView: View {
 				.frame(width: 88, height: 88)
 				.accessibilityHidden(true)
 			VStack(spacing: 4) {
-				Text("OpenParsec")
+				Text("Pane")
 					.font(.largeTitle.bold())
 				Text("Sign in with your Parsec account")
 					.font(.subheadline)

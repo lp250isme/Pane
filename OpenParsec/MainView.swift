@@ -126,7 +126,7 @@ struct MainView: View {
 					}
 				}
 			}
-			.navigationTitle("OpenParsec")
+			.navigationTitle("Pane")
 			.alert(isPresented: $showLogoutAlert) {
 				Alert(title: Text("Are you sure you want to logout?"), primaryButton: .destructive(Text("Logout"), action: logout), secondaryButton: .cancel(Text("Cancel")))
 			}

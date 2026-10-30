@@ -1,6 +1,6 @@
-# <p align="center">![icon_transparent.png](OpenParsec/Assets.xcassets/IconTransparent.imageset/icon_transparent.png) ![OpenParsec](OpenParsec/Assets.xcassets/LogoShadow.imageset/logo_shadow.png)</p>
+<p align="center"><img src="OpenParsec/Assets.xcassets/AppIcon.appiconset/AppIcon.png" alt="Pane" width="128"></p>
 
-# OpenParsec Duo — 支援 iPhone Duo 的開源 Parsec 用戶端
+# Pane — 支援 iPhone Duo 的 Parsec 用戶端
 
 [English](#english) | [繁體中文](#繁體中文)
 
@@ -10,7 +10,7 @@
 
 ## English
 
-An open-source Parsec client for iOS/iPadOS, written in Swift with SwiftUI and the Parsec SDK. This is a fork of [hugeBlack/OpenParsec](https://github.com/hugeBlack/OpenParsec) that adds full iPhone Duo (foldable) support, a native iOS UI and a round of stability fixes.
+An open-source iOS/iPadOS client for Parsec, written in Swift with SwiftUI and the Parsec SDK. Pane is a fork of [hugeBlack/OpenParsec](https://github.com/hugeBlack/OpenParsec), renamed, that adds full iPhone Duo (foldable) support, a native iOS UI and a round of stability fixes.
 
 ### What this fork changes
 
@@ -20,6 +20,7 @@ Modified from the upstream project starting October 2026 (GPLv3 §5a notice):
 - **Native UI**: a sidebar for Hosts / Friends / Settings on iOS 17+, settings as a native form, native login and prompts.
 - **Stream controls**: a Liquid Glass menu button (iOS 26) opens a native popover with bitrate, display switching, resolution (non-Mac hosts), sound, constant frame rate, pinch to zoom and stats.
 - **Mac hosts**: the client never changes the Mac's display resolution, so switching to another monitor (portrait ones included) sticks.
+- **Name and look**: renamed to Pane with its own icon and an orange accent in place of the Parsec branding.
 - **Fixes**: stretched Metal picture on non-16:9 screens, keyboard hide leaving the picture lifted, a cursor data race, a clean disconnect when the app is killed, and the nightly CI metadata.
 
 ### Install
@@ -40,16 +41,6 @@ If the stream lags out of nowhere or the bitrate hardly goes over 10 Mbps, run t
 
 Put the Parsec SDK framework in `Frameworks/` (symlink or copy), open `OpenParsec.xcodeproj` and build. CI builds with Xcode 26. The iOS 27 fold APIs compile only with the Swift 6.4 toolchain or newer.
 
-### More by kv
-
-- [kvcc.me](https://kvcc.me/): all my works, socials and links in one place
-- [Zky](https://zky.kvcc.me/): live weather with hourly, 10-day and Apple-style detail cards
-- [GTC](https://gtc.kvcc.me/): turn Google Maps links into coordinates, with Apple / Naver Maps shortcuts
-- [Indigo](https://indigo.kvcc.me/): design playlist covers with one-tap gallery themes
-- [a2o](https://a2o.kvcc.me/): turn any sentence into i18n-style numeronyms
-- [Split](https://accounting.kvcc.me/): bill splitting calculator
-- [ip](https://ip.kvcc.me/): see your connection info
-
 ### Credit and license
 
 Based on [OpenParsec](https://github.com/hugeBlack/OpenParsec) by hugeBlack and its contributors. Licensed under the GNU GPL v3, see [LICENSE](LICENSE). Parsec and the Parsec logo are trademarks of their owner. This project is not affiliated with or endorsed by Parsec. The Parsec SDK binary is under Parsec's own terms.
@@ -58,7 +49,7 @@ Based on [OpenParsec](https://github.com/hugeBlack/OpenParsec) by hugeBlack and 
 
 ## 繁體中文
 
-iOS / iPadOS 的開源 Parsec 用戶端，以 Swift、SwiftUI 與 Parsec SDK 撰寫。這是 [hugeBlack/OpenParsec](https://github.com/hugeBlack/OpenParsec) 的分支，加入完整的 iPhone Duo（摺疊機）支援、原生 iOS 介面，並修了一輪穩定性問題。
+iOS / iPadOS 上連線 Parsec 的開源用戶端，以 Swift、SwiftUI 與 Parsec SDK 撰寫。Pane 是 [hugeBlack/OpenParsec](https://github.com/hugeBlack/OpenParsec) 的分支並改了名，加入完整的 iPhone Duo（摺疊機）支援、原生 iOS 介面，並修了一輪穩定性問題。
 
 ### 這個分支改了什麼
 
@@ -68,6 +59,7 @@ iOS / iPadOS 的開源 Parsec 用戶端，以 Swift、SwiftUI 與 Parsec SDK 撰
 - **原生介面**：iOS 17+ 用側邊欄切換主機 / 好友 / 設定，設定改成原生表單，登入與提示框也改成原生樣式。
 - **串流控制**：選單按鈕在 iOS 26 是 Liquid Glass，點開是原生 popover，內有碼率、切換螢幕、解析度（非 Mac 主機）、聲音、固定幀率、雙指縮放與連線資訊。
 - **Mac 主機**：不會改動 Mac 的螢幕解析度，所以切到其他螢幕（包括直立螢幕）會留在那裡，不會彈回主螢幕。
+- **名稱與外觀**：改名為 Pane，換成自己的 icon，並以橘色強調色取代 Parsec 的品牌元素。
 - **修正**：非 16:9 螢幕上 Metal 畫面被拉伸、收鍵盤後畫面沒歸位、游標資料跨執行緒競態、App 被關掉時沒有好好斷線，以及 nightly CI 的版本資訊錯誤。
 
 ### 安裝
@@ -87,16 +79,6 @@ Release 裡的 `.ipa` 沒有簽章，請用 AltStore、SideStore、Sideloadly �
 ### 自行編譯
 
 把 Parsec SDK framework 放進 `Frameworks/`（symlink 或複製），打開 `OpenParsec.xcodeproj` 編譯即可。CI 用 Xcode 26 編譯，iOS 27 的摺疊 API 只有 Swift 6.4 以上的工具鏈才會編進去。
-
-### kv 的其他作品
-
-- [kvcc.me](https://kvcc.me/)：所有作品、社群與連結都在這裡
-- [Zky](https://zky.kvcc.me/)：即時天氣，逐時、10 天預報與 Apple 風格的詳細卡片
-- [GTC](https://gtc.kvcc.me/)：把 Google Maps 連結轉成座標，一鍵開 Apple / Naver 地圖
-- [Indigo](https://indigo.kvcc.me/)：設計歌單封面，主題藝廊一鍵套用
-- [a2o](https://a2o.kvcc.me/)：把任何句子轉成 i18n 式縮寫
-- [Split](https://accounting.kvcc.me/)：分帳計算器
-- [ip](https://ip.kvcc.me/)：查看你的連線資訊
 
 ### 致謝與授權
 
