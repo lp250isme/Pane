@@ -131,7 +131,7 @@ def update_json_file_release(json_file, latest_release):
 def update_json_file_nightly(json_file, nightly_release):
     if isinstance(nightly_release, list) and nightly_release:
         nightly_release = next((item for item in nightly_release if item["tag_name"] == "nightly"), None)
-    else:
+    if not nightly_release:
         print("Error getting nightly release")
         return
 
@@ -150,17 +150,18 @@ def update_json_file_nightly(json_file, nightly_release):
     full_version = info_plist["CFBundleShortVersionString"]
     tag = nightly_release["tag_name"]
     version = re.search(r"(\d+\.\d+\.\d+)", full_version).group(1)
-    version_date = nightly_release["published_at"]
-    date_obj = datetime.strptime(version_date, "%Y-%m-%dT%H:%M:%SZ")
-    version_date = date_obj.strftime("%Y-%m-%d")
+    # this runs before the new nightly is published, so its date and size are the last build's
+    version_date = datetime.utcnow().strftime("%Y-%m-%d")
 
     nightly_link = os.environ.get("NIGHTLY_LINK", "")
     commit_sha = os.environ.get("commit_sha", "")[:7]
-    commit_msg = os.environ.get("commit_msg", "").strip()
+    # the headline only, a commit body would spill into the AltStore listing
+    commit_msg = (os.environ.get("commit_msg", "").strip().splitlines() or [""])[0]
+    repo = os.environ.get("GITHUB_REPOSITORY", "hugeBlack/OpenParsec")
     build_number = os.environ.get("BUILD_NUMBER", "")
 
     description = f"""\
-Nightly build from [{commit_sha}](https://github.com/hugeBlack/OpenParsec/commit/{commit_sha}):\
+Nightly build from [{commit_sha}](https://github.com/{repo}/commit/{commit_sha}):\
  {commit_msg}
 
 This is a nightly release [created automatically with GitHub Actions workflow]({nightly_link}).
@@ -175,6 +176,9 @@ This is a nightly release [created automatically with GitHub Actions workflow]({
             download_url = asset["browser_download_url"]
             size = asset["size"]
             break
+    # the new IPA isn't uploaded yet; measure the one this run built
+    if os.path.exists("OpenParsec.ipa"):
+        size = os.path.getsize("OpenParsec.ipa")
 
     if download_url is None or size is None:
         print("Error: IPA file not found in release assets.")

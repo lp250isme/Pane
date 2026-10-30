@@ -197,8 +197,10 @@ class CParsec {
 		parsecImpl = ParsecSDKBridge()
 	}
 
+	// app being killed mid-stream: let go of held keys and the host's guest slot instead of waiting for a timeout
 	static func destroy() {
-
+		guard ParsecBackgroundManager.shared.hasActiveConnection else { return }
+		parsecImpl?.disconnect()
 	}
 
 	static func connect(_ peerID: String) -> ParsecStatus {

@@ -371,42 +371,35 @@ class ParsecSDKBridge: ParsecService {
 
 	}
 
+	// runs on the event thread; mouseInfo (and the CGImage in it) is read by main every frame, so only build
+	// the image here and apply everything on main
 	func handleCursorEvent(event: ParsecClientCursorEvent, sawCursor: inout Bool) {
-		let prevHidden = mouseInfo.cursorHidden
-		mouseInfo.cursorHidden = event.cursor.hidden
-		mouseInfo.mousePositionRelative = event.cursor.relative
-
-		if event.cursor.imageUpdate || !sawCursor {
-			sawCursor = true
-			let imgKey = event.key
-			let pointer = ParsecGetBuffer(_parsec, imgKey)
-			if pointer == nil {
-				return
+		let cursor = event.cursor
+		var image: CGImage?
+		if cursor.imageUpdate || !sawCursor {
+			// marked seen only once an image was had, or a first event without one never fetches it
+			if let pointer = ParsecGetBuffer(_parsec, event.key) {
+				sawCursor = true
+				let provider = CGDataProvider(data: NSData(bytes: pointer, length: Int(cursor.size)))
+				image = provider.flatMap { CGImage(width: Int(cursor.width), height: Int(cursor.height), bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: Int(cursor.width) * 4, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue), provider: $0, decode: nil, shouldInterpolate: true, intent: .defaultIntent) }
+				ParsecFree(pointer)
 			}
-			let size = event.cursor.size
-			let width = event.cursor.width
-			let height = event.cursor.height
-			mouseInfo.cursorWidth = Int(width)
-			mouseInfo.cursorHeight = Int(height)
-
-			if prevHidden && !event.cursor.hidden {
-				mouseInfo.mouseX = Int32(event.cursor.positionX)
-				mouseInfo.mouseY = Int32(event.cursor.positionY)
+		}
+		DispatchQueue.main.async {
+			let prevHidden = self.mouseInfo.cursorHidden
+			self.mouseInfo.cursorHidden = cursor.hidden
+			self.mouseInfo.mousePositionRelative = cursor.relative
+			// no usable image keeps the old cursor
+			guard let image = image else { return }
+			self.mouseInfo.cursorWidth = Int(cursor.width)
+			self.mouseInfo.cursorHeight = Int(cursor.height)
+			if prevHidden && !cursor.hidden {
+				self.mouseInfo.mouseX = Int32(cursor.positionX)
+				self.mouseInfo.mouseY = Int32(cursor.positionY)
 			}
-
-			mouseInfo.cursorHotX = Int(event.cursor.hotX)
-			mouseInfo.cursorHotY = Int(event.cursor.hotY)
-
-			let elmentLength: Int = 4
-			let render: CGColorRenderingIntent = CGColorRenderingIntent.defaultIntent
-			let rgbColorSpace = CGColorSpaceCreateDeviceRGB()
-			let bitmapInfo: CGBitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue)
-			let providerRef: CGDataProvider? = CGDataProvider(data: NSData(bytes: pointer, length: Int(size)))
-			let cgimage: CGImage? = CGImage(width: Int(width), height: Int(height), bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: Int(width) * elmentLength, space: rgbColorSpace, bitmapInfo: bitmapInfo, provider: providerRef!, decode: nil, shouldInterpolate: true, intent: render)
-			if cgimage != nil {
-				mouseInfo.cursorImg = cgimage
-			}
-			ParsecFree(pointer)
+			self.mouseInfo.cursorHotX = Int(cursor.hotX)
+			self.mouseInfo.cursorHotY = Int(cursor.hotY)
+			self.mouseInfo.cursorImg = image
 		}
 	}
 

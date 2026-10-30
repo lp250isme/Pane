@@ -138,8 +138,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NIGHTLY_LINK: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
-          commit_sha: ${{ env.COMMIT_SHA }}
-          commit_msg: ${{ env.COMMIT_MSG }}
+          commit_sha: ${{ github.sha }}
+          # passed as env, never inlined into the script, since a commit message is untrusted text
+          commit_msg: ${{ github.event.head_commit.message }}
           BUILD_NUMBER: ${{ github.run_number }}
         run: |
           python update_json.py

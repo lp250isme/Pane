@@ -1550,8 +1550,8 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
     // 3. call becomeFirstResponder().
     // 4. Do NOT simplify this to a synchronous call, or it will fail in some race conditions.
 	func setKeyboardVisible(_ visible: Bool) {
-		keyboardVisible = visible
 		if visible {
+			keyboardVisible = true
             DispatchQueue.main.async {
                 self.reloadInputViews()
                 let success = self.becomeFirstResponder()
@@ -1561,7 +1561,11 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
                 }
             }
 		} else {
+			// keyboardVisible stays set so keyboardWillHide undoes the lift and tells SwiftUI; clearing it
+			// first made the handler bail. Called again for when no notification comes (hardware keyboard),
+			// a no-op once it ran
 			resignFirstResponder()
+			keyboardWillHide(notification: NSNotification(name: UIResponder.keyboardWillHideNotification, object: nil))
 		}
 	}
 
