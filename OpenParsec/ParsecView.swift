@@ -217,7 +217,7 @@ struct ParsecView: View {
 	}
 
 	enum MenuPage {
-		case main, bitrate, display
+		case main, resolution, bitrate, display
 	}
 
 	@State var showKeyboard: Bool = false
@@ -481,6 +481,8 @@ struct ParsecView: View {
 			switch menuPage {
 			case .main:
 				overlayMenuContent
+			case .resolution:
+				resolutionPage
 			case .bitrate:
 				bitratePage
 			case .display:
@@ -509,6 +511,13 @@ struct ParsecView: View {
 	@ViewBuilder
 	var overlayMenuContent: some View {
 		Section {
+			// a Mac host can't stream at another size, it retargets the display mode and falls back
+			if let os = dataModel.hostOS, os != macHostOS {
+				MenuDrillRow("Resolution", systemImage: "aspectratio", value: resolutionSummary) {
+					menuPage = .resolution
+				}
+			}
+
 			MenuDrillRow("Bitrate", systemImage: "speedometer", value: bitrateSummary) {
 				menuPage = .bitrate
 			}
@@ -549,6 +558,24 @@ struct ParsecView: View {
 			}
 		}
 	}
+
+	@ViewBuilder
+	var resolutionPage: some View {
+		Section {
+			MenuBackRow(title: "Resolution") { menuPage = .main }
+		}
+		Section {
+			ForEach(ParsecResolution.resolutions, id: \.self) { res in
+				MenuOptionRow(res.desc, checked: res == currentResolution) { changeResolution(res) }
+			}
+		}
+	}
+
+	var currentResolution: ParsecResolution? {
+		ParsecResolution.resolutions.first { $0.width == dataModel.resolutionX && $0.height == dataModel.resolutionY }
+	}
+
+	var resolutionSummary: String { currentResolution?.desc ?? "" }
 
 	@ViewBuilder
 	var bitratePage: some View {
@@ -827,6 +854,15 @@ struct ParsecView: View {
 		if let c = controller {
 			c.setView(.main)
 		}
+	}
+
+	func changeResolution(_ res: ParsecResolution) {
+		menuPage = .main
+		SettingsHandler.resolution = res
+		DataManager.model.resolutionX = res.width
+		DataManager.model.resolutionY = res.height
+		DataManager.model.localChangeAt = Date()
+		CParsec.updateHostVideoConfig()
 	}
 
 	// stream only, 0 goes back to the host's own bitrate. The saved default lives in Settings

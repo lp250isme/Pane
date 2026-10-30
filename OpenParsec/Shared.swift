@@ -76,6 +76,8 @@ class SharedModel: ObservableObject {
 	@Published var output = "none"
 	@Published var displayConfigs: [ParsecDisplayConfig] = []
 	@Published var isBlocked = false
+	// from the host's video config reply, nil until the first one
+	@Published var hostOS: Int?
 	// the in-stream bitrate pick, nil until made, 0 = host default; survives a reconnect, not a new session
 	@Published var streamBitrate: Int?
 	// a host reply older than our own change must not undo it
@@ -90,10 +92,14 @@ class SharedModel: ObservableObject {
 		output = "none"
 		displayConfigs = []
 		isBlocked = false
+		hostOS = nil
 		streamBitrate = nil
 		localChangeAt = .distantPast
 	}
 }
+
+// the hostOS a Mac host reports (parsecd answers getVideoConfig with a constant 2)
+let macHostOS = 2
 
 class DataManager {
 	static let model = SharedModel()

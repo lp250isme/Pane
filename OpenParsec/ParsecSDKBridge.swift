@@ -128,14 +128,15 @@ class ParsecSDKBridge: ParsecService {
 
 		var parsecClientCfg = ParsecClientConfig()
 		parsecClientCfg.video.0.decoderIndex = 1
-        // Use saved resolution from SettingsHandler
-		parsecClientCfg.video.0.resolutionX = Int32(SettingsHandler.resolution.width)
-		parsecClientCfg.video.0.resolutionY = Int32(SettingsHandler.resolution.height)
+		// 0x0 keeps the host's display as it is. The host OS isn't known yet and a Mac host would retarget
+		// its display mode to the saved size; other hosts get it from updateHostVideoConfig after the first reply
+		parsecClientCfg.video.0.resolutionX = 0
+		parsecClientCfg.video.0.resolutionY = 0
 		parsecClientCfg.video.0.decoderH265 = SettingsHandler.decoder == .h265
 
 		parsecClientCfg.video.1.decoderIndex = 1
-		parsecClientCfg.video.1.resolutionX = Int32(SettingsHandler.resolution.width)
-		parsecClientCfg.video.1.resolutionY = Int32(SettingsHandler.resolution.height)
+		parsecClientCfg.video.1.resolutionX = 0
+		parsecClientCfg.video.1.resolutionY = 0
 		parsecClientCfg.video.1.decoderH265 = SettingsHandler.decoder == .h265
 
 		parsecClientCfg.mediaContainer = 0
@@ -319,10 +320,11 @@ class ParsecSDKBridge: ParsecService {
 				guard let cfg = videoConfig else { break }
 				DispatchQueue.main.async {
 					let model = DataManager.model
-					model.resolutionX = cfg.resolutionX
-					model.resolutionY = cfg.resolutionY
+					model.hostOS = cfg.hostOS
 					// a reply already in flight when we changed something reports the old state
 					if Date().timeIntervalSince(model.localChangeAt) > 5 {
+						model.resolutionX = cfg.resolutionX
+						model.resolutionY = cfg.resolutionY
 						if cfg.encoderMaxBitrate > 0 { model.bitrate = cfg.encoderMaxBitrate }
 						model.constantFps = cfg.fullFPS
 						// keep the display the host is on, or every later config push sends "none" and flips it back to the main one
@@ -668,8 +670,11 @@ class ParsecSDKBridge: ParsecService {
 
 	func updateHostVideoConfig() {
 		var videoConfig = ParsecUserDataVideoConfig()
-		videoConfig.video[0].resolutionX = DataManager.model.resolutionX
-		videoConfig.video[0].resolutionY = DataManager.model.resolutionY
+		// a Mac host retargets the display mode to any size sent, so a portrait monitor gets a landscape mode,
+		// fails and the host falls back to the main display. 0x0 is its default: keep the display as it is
+		let keepMode = DataManager.model.hostOS == macHostOS
+		videoConfig.video[0].resolutionX = keepMode ? 0 : DataManager.model.resolutionX
+		videoConfig.video[0].resolutionY = keepMode ? 0 : DataManager.model.resolutionY
 		videoConfig.video[0].encoderMaxBitrate = DataManager.model.bitrate
 		videoConfig.video[0].fullFPS = DataManager.model.constantFps
 		videoConfig.video[0].output = DataManager.model.output
