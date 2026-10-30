@@ -29,3 +29,36 @@ enum ParsecUserDataType: UInt32 {
 	case getAdapterInfo = 10
 	case setVideoConfig = 11
 }
+
+// Hosts differ in which keys they send (a Mac host is not a Windows one); a missing key must not
+// throw away the whole reply, or the bitrate and display state never reach the menu.
+extension ParsecUserDataVideo {
+	init(from decoder: Decoder) throws {
+		let c = try decoder.container(keyedBy: CodingKeys.self)
+		encoderFPS = try c.decodeIfPresent(Int.self, forKey: .encoderFPS) ?? 0
+		resolutionX = try c.decodeIfPresent(Int.self, forKey: .resolutionX) ?? 0
+		resolutionY = try c.decodeIfPresent(Int.self, forKey: .resolutionY) ?? 0
+		fullFPS = try c.decodeIfPresent(Bool.self, forKey: .fullFPS) ?? false
+		hostOS = try c.decodeIfPresent(Int.self, forKey: .hostOS) ?? 0
+		output = try c.decodeIfPresent(String.self, forKey: .output) ?? "none"
+		encoderMaxBitrate = try c.decodeIfPresent(Int.self, forKey: .encoderMaxBitrate) ?? 0
+	}
+}
+
+extension ParsecUserDataVideoConfig {
+	init(from decoder: Decoder) throws {
+		let c = try decoder.container(keyedBy: CodingKeys.self)
+		virtualMicrophone = try c.decodeIfPresent(Int.self, forKey: .virtualMicrophone) ?? 0
+		virtualTablet = try c.decodeIfPresent(Int.self, forKey: .virtualTablet) ?? 0
+		video = try c.decodeIfPresent([ParsecUserDataVideo].self, forKey: .video) ?? []
+	}
+}
+
+extension ParsecDisplayConfig {
+	init(from decoder: Decoder) throws {
+		let c = try decoder.container(keyedBy: CodingKeys.self)
+		name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+		adapterName = try c.decodeIfPresent(String.self, forKey: .adapterName) ?? ""
+		id = try c.decodeIfPresent(String.self, forKey: .id) ?? ""
+	}
+}

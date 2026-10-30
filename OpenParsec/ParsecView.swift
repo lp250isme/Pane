@@ -202,6 +202,9 @@ struct ParsecView: View {
 	@State var menuPresented: Bool = false
 	// measured height of the menu list so the popover fits its content (iOS 18+), an estimate before that
 	@State var menuContentHeight: CGFloat = StreamChrome.menuHeightEstimate
+	// which page of the stream menu is showing, back to the main one each time the popover opens
+	@State var menuPage: MenuPage = .main
+	// the bitrate picked from the stream menu this session, 0 for Host Default, nil while untouched
 	// the popover can take first responder from the stream, remember to hand the keyboard back
 	@State var keyboardUpBeforeMenu: Bool = false
 	// actions that remove the popover's anchor (or the whole view) wait until it has gone
@@ -213,6 +216,10 @@ struct ParsecView: View {
 		case hideButtons, disconnect
 	}
 
+	enum MenuPage {
+		case main, bitrate, display
+	}
+
 	@State var showKeyboard: Bool = false
 	@State var zoomEnabled: Bool = false
 
@@ -221,7 +228,6 @@ struct ParsecView: View {
 	@State var isReconnecting: Bool = false
 	@State var connectionLost: Bool = false
 
-	@State var resolutions: [ParsecResolution]
 	@State var bitrates: [Int]
 
     // Persist the VC across view updates using StateObject.
@@ -244,7 +250,6 @@ struct ParsecView: View {
 
 		_muted = State(initialValue: SettingsHandler.startMuted)
 		_zoomEnabled = State(initialValue: SettingsHandler.zoomEnabled)
-		_resolutions = State(initialValue: ParsecResolution.resolutions)
 		_bitrates = State(initialValue: ParsecResolution.bitrates)
 
     }
@@ -413,8 +418,12 @@ struct ParsecView: View {
 		if #available(iOS 26, *) {
 			// glass circle, dimmed while idle so it stays out of the picture
 			Button(action: toggleMenu) {
-				Image(systemName: "slider.horizontal.3")
-					.font(.system(size: 20, weight: .medium))
+				// the Parsec logo in its own colours, the glass would otherwise tint it like a symbol
+				Image("IconTransparent")
+					.renderingMode(.original)
+					.resizable()
+					.aspectRatio(contentMode: .fit)
+					.frame(width: 26, height: 26)
 					.frame(width: 32, height: 32)
 			}
 			.buttonStyle(.glass)
@@ -469,17 +478,30 @@ struct ParsecView: View {
 
 	var overlayMenuPanel: some View {
 		List {
-			overlayMenuContent
+			switch menuPage {
+			case .main:
+				overlayMenuContent
+			case .bitrate:
+				bitratePage
+			case .display:
+				displayPage
+			}
 		}
 		.listStyle(.insetGrouped)
 		.popoverListBackground()
 		.fitsContentHeight($menuContentHeight)
+		// a fresh list and height reading per page, so it starts at the top and the popover fits that page
+		.id(menuPage)
 		.compactPopover(done: { showMenuPopover = false })
 		// the popover clamps this to the space it has, so landscape scrolls instead of overflowing
 		.frame(minWidth: 320, idealWidth: 340, idealHeight: menuContentHeight)
-		.onAppear { menuPresented = true }
+		.onAppear {
+			menuPresented = true
+			menuPage = .main
+		}
 		.onDisappear {
 			menuPresented = false
+			menuPage = .main
 			menuDidDismiss()
 		}
 	}
@@ -487,28 +509,13 @@ struct ParsecView: View {
 	@ViewBuilder
 	var overlayMenuContent: some View {
 		Section {
-			StreamMenuPicker("Resolution", systemImage: "aspectratio", selection: Binding<ParsecResolution?>(
-				get: { resolutions.first { $0.width == dataModel.resolutionX && $0.height == dataModel.resolutionY } },
-				set: { if let resolution = $0 { changeResolution(res: resolution) } }
-			)) {
-				ForEach(resolutions, id: \.self) { resolution in
-					Text(resolution.desc).tag(Optional(resolution))
-				}
-			}
-
-			StreamMenuPicker("Bitrate", systemImage: "speedometer", selection: Binding(get: { settingsStore.bitrate }, set: { changeBitRate(bitrate: $0) })) {
-				Text("Host Default").tag(0)
-				ForEach(bitrates, id: \.self) { bitrate in
-					Text("\(bitrate) Mbps").tag(bitrate)
-				}
+			MenuDrillRow("Bitrate", systemImage: "speedometer", value: bitrateSummary) {
+				menuPage = .bitrate
 			}
 
 			if dataModel.displayConfigs.count > 1 {
-				StreamMenuPicker("Switch Display", systemImage: "display", selection: Binding(get: { dataModel.output }, set: { changeDisplay(displayId: $0) })) {
-					Text("Auto").tag("none")
-					ForEach(dataModel.displayConfigs, id: \.self) { config in
-						Text("\(config.name) \(config.adapterName)").tag(config.id)
-					}
+				MenuDrillRow("Switch Display", systemImage: "display", value: displaySummary) {
+					menuPage = .display
 				}
 			}
 		}
@@ -541,6 +548,54 @@ struct ParsecView: View {
 				Label("Disconnect", systemImage: "power")
 			}
 		}
+	}
+
+	@ViewBuilder
+	var bitratePage: some View {
+		Section {
+			MenuBackRow(title: "Bitrate") { menuPage = .main }
+		}
+		Section {
+			MenuOptionRow("Host Default", checked: bitrateIsHostDefault) { changeStreamBitrate(0) }
+				.disabled(dataModel.hostDefaultBitrate <= 0)
+			ForEach(bitrates, id: \.self) { bitrate in
+				MenuOptionRow("\(bitrate) Mbps", checked: !bitrateIsHostDefault && dataModel.bitrate == bitrate) { changeStreamBitrate(bitrate) }
+			}
+		}
+	}
+
+	@ViewBuilder
+	var displayPage: some View {
+		Section {
+			MenuBackRow(title: "Switch Display") { menuPage = .main }
+		}
+		Section {
+			MenuOptionRow("Auto", checked: dataModel.output == "none") { pickDisplay("none") }
+			ForEach(dataModel.displayConfigs, id: \.self) { config in
+				MenuOptionRow("\(config.name) \(config.adapterName)", checked: dataModel.output == config.id) { pickDisplay(config.id) }
+			}
+		}
+	}
+
+	// the host's live bitrate reads as Host Default while it matches, unless that exact number was picked
+	var bitrateIsHostDefault: Bool {
+		dataModel.hostDefaultBitrate > 0 && (dataModel.streamBitrate ?? SettingsHandler.bitrate) == 0
+	}
+
+	var bitrateSummary: String {
+		if bitrateIsHostDefault { return "Host Default" }
+		return dataModel.bitrate > 0 ? "\(dataModel.bitrate) Mbps" : ""
+	}
+
+	var displaySummary: String {
+		if dataModel.output == "none" { return "Auto" }
+		return dataModel.displayConfigs.first { $0.id == dataModel.output }.map { "\($0.name) \($0.adapterName)" } ?? ""
+	}
+
+	func pickDisplay(_ displayId: String) {
+		menuPage = .main
+		guard displayId != dataModel.output else { return }
+		changeDisplay(displayId: displayId)
 	}
 
 	func toggleMenu() {
@@ -774,30 +829,21 @@ struct ParsecView: View {
 		}
 	}
 
-	func changeResolution(res: ParsecResolution) {
-        SettingsHandler.resolution = res
-		DispatchQueue.main.async {
-			DataManager.model.resolutionX = res.width
-			DataManager.model.resolutionY = res.height
-			CParsec.updateHostVideoConfig()
-		}
-	}
-
-	func changeBitRate(bitrate: Int) {
-		SettingsHandler.bitrate = bitrate
-		applyBitrate()
-	}
-
-	func applyBitrate() {
-		let target = SettingsHandler.bitrate > 0 ? SettingsHandler.bitrate : DataManager.model.hostDefaultBitrate
+	// stream only, 0 goes back to the host's own bitrate. The saved default lives in Settings
+	func changeStreamBitrate(_ bitrate: Int) {
+		menuPage = .main
+		DataManager.model.streamBitrate = bitrate
+		let target = bitrate > 0 ? bitrate : DataManager.model.hostDefaultBitrate
 		guard target > 0, target != DataManager.model.bitrate else { return }
 		DataManager.model.bitrate = target
+		DataManager.model.localChangeAt = Date()
 		CParsec.updateHostVideoConfig()
 	}
 
 	func toggleConstantFps() {
 		DispatchQueue.main.async {
 			DataManager.model.constantFps.toggle()
+			DataManager.model.localChangeAt = Date()
 			CParsec.updateHostVideoConfig()
 			SettingsHandler.constantFps = DataManager.model.constantFps
 		}
@@ -821,6 +867,7 @@ struct ParsecView: View {
 	func changeDisplay(displayId: String) {
 		DispatchQueue.main.async {
 			DataManager.model.output = displayId
+			DataManager.model.localChangeAt = Date()
 			CParsec.updateHostVideoConfig()
 		}
 	}
@@ -911,36 +958,92 @@ private enum StreamChrome {
 	static let menuHeightEstimate: CGFloat = 520
 }
 
-/// A menu Picker row with an icon label. iOS 15 menu pickers in a List drop their label, so it is laid out by hand there.
-private struct StreamMenuPicker<Value: Hashable, Options: View>: View {
+/// A stream menu row that opens a page of options, plain buttons only (menus never got the tap here)
+private struct MenuDrillRow: View {
 	let title: String
 	let systemImage: String
-	@Binding var selection: Value
-	let options: () -> Options
+	let value: String
+	let action: () -> Void
 
-	init(_ title: String, systemImage: String, selection: Binding<Value>, @ViewBuilder options: @escaping () -> Options) {
+	init(_ title: String, systemImage: String, value: String, action: @escaping () -> Void) {
 		self.title = title
 		self.systemImage = systemImage
-		_selection = selection
-		self.options = options
+		self.value = value
+		self.action = action
 	}
 
 	var body: some View {
-		if #available(iOS 16, *) {
-			picker
-		} else {
-			HStack {
-				Label(title, systemImage: systemImage)
-				Spacer()
-				picker.labelsHidden()
+		Button(action: action) {
+			HStack(spacing: 8) {
+				Label {
+					Text(title).foregroundColor(.primary)
+				} icon: {
+					Image(systemName: systemImage)
+				}
+				Spacer(minLength: 8)
+				Text(value)
+					.foregroundColor(.secondary)
+					.lineLimit(1)
+				Image(systemName: "chevron.right")
+					.font(.footnote.weight(.semibold))
+					.foregroundColor(Color(.tertiaryLabel))
 			}
+			.contentShape(Rectangle())
 		}
+		.accessibilityValue(value)
+	}
+}
+
+/// The way back from an options page to the main stream menu
+private struct MenuBackRow: View {
+	let title: String
+	let action: () -> Void
+
+	var body: some View {
+		Button(action: action) {
+			HStack(spacing: 6) {
+				Image(systemName: "chevron.left")
+					.font(.body.weight(.semibold))
+				Text(title)
+					.font(.headline)
+					.foregroundColor(.primary)
+				Spacer()
+			}
+			.contentShape(Rectangle())
+		}
+		.accessibilityLabel("Back")
+		.accessibilityHint(title)
+	}
+}
+
+/// One choice on an options page, the current one carries a checkmark
+private struct MenuOptionRow: View {
+	let title: String
+	let checked: Bool
+	let action: () -> Void
+
+	@Environment(\.isEnabled) private var isEnabled
+
+	init(_ title: String, checked: Bool, action: @escaping () -> Void) {
+		self.title = title
+		self.checked = checked
+		self.action = action
 	}
 
-	private var picker: some View {
-		Picker(selection: $selection, content: options) {
-			Label(title, systemImage: systemImage)
+	var body: some View {
+		Button(action: action) {
+			HStack {
+				Text(title)
+					.foregroundColor(isEnabled ? .primary : .secondary)
+				Spacer()
+				if checked {
+					Image(systemName: "checkmark")
+						.font(.body.weight(.semibold))
+						.foregroundColor(.accentColor)
+				}
+			}
+			.contentShape(Rectangle())
 		}
-		.pickerStyle(.menu)
+		.accessibilityAddTraits(checked ? .isSelected : [])
 	}
 }

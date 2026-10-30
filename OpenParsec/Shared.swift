@@ -76,6 +76,10 @@ class SharedModel: ObservableObject {
 	@Published var output = "none"
 	@Published var displayConfigs: [ParsecDisplayConfig] = []
 	@Published var isBlocked = false
+	// the in-stream bitrate pick, nil until made, 0 = host default; survives a reconnect, not a new session
+	@Published var streamBitrate: Int?
+	// a host reply older than our own change must not undo it
+	var localChangeAt = Date.distantPast
 
 	func reset() {
 		resolutionX = 0
@@ -86,6 +90,8 @@ class SharedModel: ObservableObject {
 		output = "none"
 		displayConfigs = []
 		isBlocked = false
+		streamBitrate = nil
+		localChangeAt = .distantPast
 	}
 }
 

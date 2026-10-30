@@ -315,25 +315,35 @@ class ParsecSDKBridge: ParsecService {
 				let decoder = JSONDecoder()
 				let config = try decoder.decode(ParsecUserDataVideoConfig.self, from: Data(bytesNoCopy: pointer!, count: strlen(pointer!), deallocator: .none))
 				let videoConfig = config.video.first
+				// a reply without a video entry says nothing, wait for the next one
+				guard let cfg = videoConfig else { break }
 				DispatchQueue.main.async {
-					if let cfg = videoConfig {
-						DataManager.model.resolutionX = cfg.resolutionX
-						DataManager.model.resolutionY = cfg.resolutionY
-						DataManager.model.bitrate = cfg.encoderMaxBitrate
-						DataManager.model.constantFps = cfg.fullFPS
+					let model = DataManager.model
+					model.resolutionX = cfg.resolutionX
+					model.resolutionY = cfg.resolutionY
+					// a reply already in flight when we changed something reports the old state
+					if Date().timeIntervalSince(model.localChangeAt) > 5 {
+						if cfg.encoderMaxBitrate > 0 { model.bitrate = cfg.encoderMaxBitrate }
+						model.constantFps = cfg.fullFPS
+						// keep the display the host is on, or every later config push sends "none" and flips it back to the main one
+						model.output = cfg.output.isEmpty ? "none" : cfg.output
 					}
 					if !self.didSetResolution {
 						self.didSetResolution = true
-						if DataManager.model.hostDefaultBitrate == 0 {
-							DataManager.model.hostDefaultBitrate = DataManager.model.bitrate
+						if model.hostDefaultBitrate == 0 {
+							model.hostDefaultBitrate = cfg.encoderMaxBitrate
 						}
-						DataManager.model.resolutionX = SettingsHandler.resolution.width
-						DataManager.model.resolutionY = SettingsHandler.resolution.height
-						DataManager.model.constantFps = SettingsHandler.constantFps
-						if SettingsHandler.bitrate > 0 {
-							DataManager.model.bitrate = SettingsHandler.bitrate
+						model.resolutionX = SettingsHandler.resolution.width
+						model.resolutionY = SettingsHandler.resolution.height
+						model.constantFps = SettingsHandler.constantFps
+						// this stream's pick, then the saved default, then whatever the host runs
+						if let picked = model.streamBitrate {
+							if picked > 0 { model.bitrate = picked } else if model.hostDefaultBitrate > 0 { model.bitrate = model.hostDefaultBitrate }
+						} else if SettingsHandler.bitrate > 0 {
+							model.bitrate = SettingsHandler.bitrate
 						}
-						self.updateHostVideoConfig()
+						// never tell the host 0 Mbps; output was just read, so the host stays on its current display
+						if model.bitrate > 0 { self.updateHostVideoConfig() }
 					}
 				}
 
@@ -345,7 +355,8 @@ class ParsecSDKBridge: ParsecService {
 				let decoder = JSONDecoder()
 				let config = try decoder.decode(Array<ParsecDisplayConfig>.self, from: Data(bytesNoCopy: pointer!, count: strlen(pointer!), deallocator: .none))
 				DispatchQueue.main.async {
-					DataManager.model.displayConfigs = config
+					// an entry without an id can't be switched to
+					DataManager.model.displayConfigs = config.filter { !$0.id.isEmpty }
 				}
 			} catch {
 				print("error while parsing user data: \(error.localizedDescription)")
