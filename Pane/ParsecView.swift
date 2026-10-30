@@ -190,6 +190,8 @@ struct ParsecView: View {
 	@State var metricInfo: String = "Loading..."
 
 	@State var hideOverlay: Bool = false
+	// where the trackpad deck's toolbar sits (portrait, half fold); nil when the picture has the whole screen
+	@State var deckToolbar: CGRect?
 	@State var hideKeyboardButton: Bool = false
 	@AppStorage("keyboardHintShown") var keyboardHintShown: Bool = false
 	@AppStorage("keyboardPanHintShown") var keyboardPanHintShown: Bool = false
@@ -364,7 +366,16 @@ struct ParsecView: View {
 					.zIndex(3)
 			}
 
-			VStack {
+			// the keyboard covers the deck's bottom band, so its controls go back to floating over the picture
+			if let bar = deckToolbar, !showKeyboard {
+				deckToolbarView
+					.frame(width: bar.width, height: bar.height)
+					.position(x: bar.midX, y: bar.midY)
+					.zIndex(2)
+			}
+
+			// with the trackpad deck the controls live in its toolbar and the picture stays clear
+			if deckToolbar == nil || showKeyboard { VStack {
 				if !hideOverlay {
 					HStack {
 						overlayMenuButton
@@ -385,7 +396,53 @@ struct ParsecView: View {
 				}
 				Spacer()
 			}
-			.zIndex(2)
+			.zIndex(2) }
+		}
+	}
+
+	// the deck's toolbar: the stream menu, Mission Control, the desktop and the keyboard, Mac-dock style
+	var deckToolbarView: some View {
+		let mac = dataModel.hostOS == macHostOS
+		return HStack(spacing: 16) {
+			overlayMenuButton
+			deckButton("rectangle.3.group", label: mac ? "Mission Control" : "Task View") {
+				parsecViewController.trackpadGesture(.swipeUp)
+			}
+			deckButton("menubar.dock.rectangle", label: "Show Desktop") {
+				parsecViewController.trackpadGesture(.spread)
+			}
+			if !hideKeyboardButton {
+				keyboardButton
+			}
+		}
+		.padding(.bottom, 6)
+		// it always sits on the stream's black
+		.environment(\.colorScheme, .dark)
+	}
+
+	@ViewBuilder
+	func deckButton(_ symbol: String, label: LocalizedStringKey, action: @escaping () -> Void) -> some View {
+		if #available(iOS 26, *) {
+			Button(action: action) {
+				Image(systemName: symbol)
+					.font(.system(size: 20, weight: .medium))
+					.frame(width: 32, height: 32)
+			}
+			.buttonStyle(.glass)
+			.buttonBorderShape(.circle)
+			.foregroundStyle(.white)
+			.accessibilityLabel(label)
+		} else {
+			Button(action: action) {
+				Image(systemName: symbol)
+					.resizable()
+					.aspectRatio(contentMode: .fit)
+					.frame(width: 28, height: 28)
+					.foregroundColor(.white)
+					.padding(10)
+					.background(Circle().fill(Color.white.opacity(0.14)))
+			}
+			.accessibilityLabel(label)
 		}
 	}
 
@@ -428,7 +485,8 @@ struct ParsecView: View {
 			}
 			.buttonStyle(.glass)
 			.buttonBorderShape(.circle)
-			.opacity(menuOpen ? 1 : 0.6)
+			// dimmed while idle over the picture; on the deck it is a plain control
+			.opacity(menuOpen || deckToolbar != nil ? 1 : 0.6)
 			.animation(.easeOut(duration: 0.2), value: menuOpen)
 		} else {
 			Button(action: toggleMenu) {
@@ -757,6 +815,10 @@ struct ParsecView: View {
         parsecViewController.onKeyboardVisibilityChanged = { visible in
             keyboardShown.wrappedValue = visible
         }
+		let deck = $deckToolbar
+		parsecViewController.onDeckToolbarChanged = { deck.wrappedValue = $0 }
+		// the first layout may have run before this was listening
+		deckToolbar = parsecViewController.deckToolbarFrame
 		let hint = $hint
 		let panHintShown = $keyboardPanHintShown
 		parsecViewController.onKeyboardCoversPicture = {
@@ -780,7 +842,8 @@ struct ParsecView: View {
 	}
 
 	func offerHint(always: Bool = false) {
-		let menu = hideOverlay && (always || !menuSwipeHintShown)
+		// with the trackpad deck the menu button stays in its toolbar, nothing to bring back
+		let menu = hideOverlay && deckToolbar == nil && (always || !menuSwipeHintShown)
 		let keyboard = hideKeyboardButton && (always || !keyboardHintShown)
 		guard menu || keyboard else { return }
 		if menu { menuSwipeHintShown = true }

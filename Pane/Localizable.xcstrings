@@ -106,6 +106,16 @@
         }
       }
     },
+    "App Exposé": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App Exposé"
+          }
+        }
+      }
+    },
     "Are you sure you want to logout?": {
       "localizations": {
         "zh-Hant": {
@@ -904,6 +914,16 @@
         }
       }
     },
+    "Mission Control": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "指揮中心"
+          }
+        }
+      }
+    },
     "Move screen in any direction": {
       "localizations": {
         "zh-Hant": {
@@ -940,6 +960,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "網路逾時"
+          }
+        }
+      }
+    },
+    "Next Desktop": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下一個桌面"
+          }
+        }
+      }
+    },
+    "Next Space": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下一個桌面空間"
           }
         }
       }
@@ -1010,6 +1050,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "關閉"
+          }
+        }
+      }
+    },
+    "One finger to move, tap to click\nTwo fingers to scroll or right click\nThree or four fingers to swipe between desktops": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "單指移動，點一下按左鍵\n雙指捲動或按右鍵\n三或四指滑動切換桌面"
           }
         }
       }
@@ -1109,6 +1159,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "優先使用 H.265"
+          }
+        }
+      }
+    },
+    "Previous Desktop": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上一個桌面"
+          }
+        }
+      }
+    },
+    "Previous Space": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上一個桌面空間"
           }
         }
       }
@@ -1273,6 +1343,16 @@
         }
       }
     },
+    "Show Desktop": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顯示桌面"
+          }
+        }
+      }
+    },
     "Show Keyboard Button": {
       "localizations": {
         "zh-Hant": {
@@ -1353,6 +1433,26 @@
         }
       }
     },
+    "Spotlight": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spotlight"
+          }
+        }
+      }
+    },
+    "Start": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開始功能表"
+          }
+        }
+      }
+    },
     "Start Muted": {
       "localizations": {
         "zh-Hant": {
@@ -1409,6 +1509,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "三指點一下可以叫出或收起鍵盤"
+          }
+        }
+      }
+    },
+    "Task View": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工作檢視"
           }
         }
       }

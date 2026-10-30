@@ -45,22 +45,146 @@ final class TrackpadView: UIView {
 	private let swipeDistance: CGFloat = 60
 	private let feedback = UIImpactFeedbackGenerator(style: .light)
 
-	private let surface = UIView()
+	// the pad sits on the stream's black in either theme, so it is drawn light-on-dark
+	private let surface: UIView
+	private let rim = CALayer()
+	private let dotLayer = UIView()
+	private var dots: [UITouch: UIView] = [:]
+	private let hint = UILabel()
+	private let hud = UIView()
+	private let hudIcon = UIImageView()
+	private let hudLabel = UILabel()
+	private var hudHide: DispatchWorkItem?
+	private var hintDismissed = false
+	private static let corner: CGFloat = 28
 
 	override init(frame: CGRect) {
+		// Liquid Glass frames the pad on iOS 26 (it reads as a dark pane on the black stream); a faint
+		// fill before that, and whenever Reduce Transparency is on
+		if #available(iOS 26, *), !UIAccessibility.isReduceTransparencyEnabled {
+			let glass = UIVisualEffectView(effect: UIGlassEffect())
+			// glass takes its shape from the corner configuration, not the layer (it defaults to a capsule)
+			glass.cornerConfiguration = .corners(radius: .fixed(Self.corner))
+			surface = glass
+		} else {
+			surface = UIView()
+			surface.backgroundColor = UIColor(white: 1, alpha: 0.08)
+		}
 		super.init(frame: frame)
 		isMultipleTouchEnabled = true
 		backgroundColor = .clear
-		// a pad you can see without it competing with the picture above
+		// the pad always sits on the stream's black, so its glass and text stay in their dark form
+		overrideUserInterfaceStyle = .dark
+
 		surface.isUserInteractionEnabled = false
-		surface.backgroundColor = UIColor(white: 1, alpha: 0.07)
-		surface.layer.cornerRadius = 18
+		surface.layer.cornerRadius = Self.corner
 		surface.layer.cornerCurve = .continuous
-		surface.layer.borderWidth = 1
-		surface.layer.borderColor = UIColor(white: 1, alpha: 0.10).cgColor
+		surface.clipsToBounds = true
 		addSubview(surface)
+
+		// a hairline that brightens while a drag holds the button down
+		rim.cornerRadius = Self.corner
+		rim.cornerCurve = .continuous
+		rim.borderWidth = 1
+		rim.borderColor = UIColor(white: 1, alpha: 0.14).cgColor
+		layer.addSublayer(rim)
+
+		hint.numberOfLines = 0
+		hint.textAlignment = .center
+		hint.font = .preferredFont(forTextStyle: .footnote)
+		hint.adjustsFontForContentSizeCategory = true
+		hint.textColor = UIColor(white: 1, alpha: 0.42)
+		hint.text = String(localized: "One finger to move, tap to click\nTwo fingers to scroll or right click\nThree or four fingers to swipe between desktops")
+		hint.isUserInteractionEnabled = false
+		addSubview(hint)
+
+		dotLayer.isUserInteractionEnabled = false
+		addSubview(dotLayer)
+
+		hud.isUserInteractionEnabled = false
+		hud.backgroundColor = UIColor(white: 0.12, alpha: 0.92)
+		hud.layer.cornerCurve = .continuous
+		hud.layer.borderWidth = 1
+		hud.layer.borderColor = UIColor(white: 1, alpha: 0.12).cgColor
+		hud.alpha = 0
+		hudIcon.tintColor = .white
+		hudIcon.contentMode = .scaleAspectFit
+		hudIcon.preferredSymbolConfiguration = UIImage.SymbolConfiguration(textStyle: .subheadline, scale: .medium)
+		hudLabel.font = .preferredFont(forTextStyle: .subheadline).withWeight(.semibold)
+		hudLabel.textColor = .white
+		hud.addSubview(hudIcon)
+		hud.addSubview(hudLabel)
+		addSubview(hud)
+
 		isAccessibilityElement = true
 		accessibilityLabel = String(localized: "Trackpad")
+		accessibilityHint = hint.text
+	}
+
+	/// a short label for the multi-finger gesture that just went to the host
+	func showHUD(title: String, symbol: String) {
+		hudIcon.image = UIImage(systemName: symbol)
+		hudLabel.text = title
+		hudLabel.sizeToFit()
+		let h: CGFloat = 36, iconW: CGFloat = 20
+		let w = 14 + iconW + 8 + hudLabel.bounds.width + 16
+		hud.bounds = CGRect(x: 0, y: 0, width: w, height: h)
+		hud.layer.cornerRadius = h / 2
+		hudIcon.frame = CGRect(x: 14, y: (h - iconW) / 2, width: iconW, height: iconW)
+		hudLabel.frame = CGRect(x: 14 + iconW + 8, y: (h - hudLabel.bounds.height) / 2, width: hudLabel.bounds.width, height: hudLabel.bounds.height)
+		hud.center = CGPoint(x: bounds.midX, y: surface.frame.minY + 14 + h / 2)
+		hudHide?.cancel()
+		hud.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
+		UIView.animate(withDuration: 0.35, delay: 0, usingSpringWithDamping: 0.75, initialSpringVelocity: 0) {
+			self.hud.alpha = 1
+			self.hud.transform = .identity
+		}
+		let hide = DispatchWorkItem { [weak self] in
+			UIView.animate(withDuration: 0.3) { self?.hud.alpha = 0 }
+		}
+		hudHide = hide
+		DispatchQueue.main.asyncAfter(deadline: .now() + 1.1, execute: hide)
+	}
+
+	private func setDragging(_ dragging: Bool) {
+		CATransaction.begin()
+		CATransaction.setAnimationDuration(0.2)
+		rim.borderColor = UIColor(white: 1, alpha: dragging ? 0.55 : 0.14).cgColor
+		rim.borderWidth = dragging ? 2 : 1
+		CATransaction.commit()
+	}
+
+	// a soft light under each finger, so the pad shows what it is reading
+	private func updateDots(_ live: [UITouch]) {
+		for (touch, dot) in dots where !live.contains(touch) {
+			dots[touch] = nil
+			UIView.animate(withDuration: 0.25, animations: {
+				dot.alpha = 0
+				dot.transform = CGAffineTransform(scaleX: 1.4, y: 1.4)
+			}, completion: { _ in dot.removeFromSuperview() })
+		}
+		for touch in live {
+			let point = touch.location(in: self)
+			if let dot = dots[touch] {
+				dot.center = point
+				continue
+			}
+			let d: CGFloat = 44
+			let dot = UIView(frame: CGRect(x: 0, y: 0, width: d, height: d))
+			dot.layer.cornerRadius = d / 2
+			dot.backgroundColor = UIColor(white: 1, alpha: 0.18)
+			dot.layer.borderWidth = 1
+			dot.layer.borderColor = UIColor(white: 1, alpha: 0.28).cgColor
+			dot.center = point
+			dot.transform = CGAffineTransform(scaleX: 0.6, y: 0.6)
+			dot.alpha = 0
+			dotLayer.addSubview(dot)
+			dots[touch] = dot
+			UIView.animate(withDuration: 0.18) {
+				dot.alpha = 1
+				dot.transform = .identity
+			}
+		}
 	}
 
 	required init?(coder: NSCoder) {
@@ -69,7 +193,17 @@ final class TrackpadView: UIView {
 
 	override func layoutSubviews() {
 		super.layoutSubviews()
-		surface.frame = bounds.insetBy(dx: 12, dy: 10)
+		let pad = bounds.insetBy(dx: 12, dy: 8)
+		surface.frame = pad
+		CATransaction.begin()
+		CATransaction.setDisableActions(true)
+		rim.frame = pad
+		CATransaction.commit()
+		dotLayer.frame = bounds
+		let hintSize = hint.sizeThatFits(CGSize(width: pad.width - 40, height: pad.height))
+		hint.frame = CGRect(x: pad.midX - hintSize.width / 2, y: pad.midY - hintSize.height / 2, width: hintSize.width, height: hintSize.height)
+		// recomputed every pass, so an early tiny layout doesn't hide it for good
+		hint.isHidden = hintDismissed || bounds.width < 1 || pad.height < hintSize.height + 24
 	}
 
 	override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) { update(event) }
@@ -85,6 +219,8 @@ final class TrackpadView: UIView {
 		delegate?.trackpadCursorActive(false)
 		// fingers still down would otherwise start a fresh gesture (and a hold-to-drag) where they are
 		ignoreUntilLift = !fingers.isEmpty
+		setDragging(false)
+		updateDots([])
 		mode = .idle
 		fingers = []
 		maxFingers = 0
@@ -94,6 +230,12 @@ final class TrackpadView: UIView {
 		let live = (event?.touches(for: self) ?? [])
 			.filter { $0.phase != .ended && $0.phase != .cancelled }
 			.sorted { $0.timestamp < $1.timestamp }
+		updateDots(live)
+		// the hint is for the first look; once a finger lands it has done its job
+		if !live.isEmpty && !hintDismissed {
+			hintDismissed = true
+			UIView.animate(withDuration: 0.3, animations: { self.hint.alpha = 0 }, completion: { _ in self.hint.isHidden = true })
+		}
 		if ignoreUntilLift {
 			if live.isEmpty { ignoreUntilLift = false }
 			return
@@ -165,6 +307,7 @@ final class TrackpadView: UIView {
 		let timer = DispatchWorkItem { [weak self] in
 			guard let self, self.fingers.count == 1, self.maxFingers == 1, !self.moved, self.mode == .idle else { return }
 			self.mode = .drag
+			self.setDragging(true)
 			self.delegate?.trackpadCursorActive(true)
 			self.feedback.impactOccurred()
 			self.delegate?.trackpadButton(1, pressed: true)
@@ -233,6 +376,7 @@ final class TrackpadView: UIView {
 		delegate?.trackpadCursorActive(false)
 		switch mode {
 		case .drag:
+			setDragging(false)
 			delegate?.trackpadButton(1, pressed: false)
 		case .pointer:
 			delegate?.trackpadMoveEnded()
@@ -260,5 +404,11 @@ final class TrackpadView: UIView {
 		guard fingers.count >= 2 else { return 0 }
 		let c = centroid()
 		return fingers.map { hypot($0.location(in: self).x - c.x, $0.location(in: self).y - c.y) }.reduce(0, +) / CGFloat(fingers.count)
+	}
+}
+
+private extension UIFont {
+	func withWeight(_ weight: UIFont.Weight) -> UIFont {
+		UIFont.systemFont(ofSize: pointSize, weight: weight)
 	}
 }

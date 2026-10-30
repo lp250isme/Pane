@@ -96,6 +96,11 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	var contentView: UIView!
 	var lastLaidOutFrame: CGRect = .zero
 	var trackpad: TrackpadView!
+	// the deck's toolbar (menu, Mission Control, desktop, keyboard) is SwiftUI; it learns where to sit from this
+	var onDeckToolbarChanged: ((CGRect?) -> Void)?
+	private var lastDeckToolbar: CGRect?
+	var deckToolbarFrame: CGRect? { lastDeckToolbar }
+	static let deckToolbarHeight: CGFloat = 64
 	var trackpadOwnsCursor = false       // a finger is moving the cursor on the trackpad; the host's late reports must not pull it back
 	private var lastHostSize: CGSize = .zero
 
@@ -392,12 +397,20 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 		guard scrollView != nil else { return }
 		let layout = streamLayout()
 		let frame = layout.picture
-		if let pad = layout.trackpad {
-			trackpad.frame = pad
+		var toolbar: CGRect?
+		if let deck = layout.trackpad {
+			// the toolbar takes the bottom band of the deck, the trackpad the rest
+			let bar = deck.height > Self.deckToolbarHeight + 80 ? Self.deckToolbarHeight : 0
+			trackpad.frame = CGRect(x: deck.minX, y: deck.minY, width: deck.width, height: deck.height - bar)
+			toolbar = bar > 0 ? CGRect(x: deck.minX, y: deck.maxY - bar, width: deck.width, height: bar) : nil
 			trackpad.isHidden = false
 		} else if !trackpad.isHidden {
 			trackpad.reset()
 			trackpad.isHidden = true
+		}
+		if toolbar != lastDeckToolbar {
+			lastDeckToolbar = toolbar
+			onDeckToolbarChanged?(toolbar)
 		}
 		guard frame.width > 0, frame.height > 0, frame != lastLaidOutFrame else { return }
 		// a held finger, glide or zoom offset would keep mapping against the old size
@@ -1756,6 +1769,18 @@ extension ParsecViewController: TrackpadDelegate {
 		positionCursorOverlay()
 	}
 
+	// what the host does for a gesture, named the way that host names it
+	static func gestureTitle(_ gesture: TrackpadGesture, mac: Bool) -> (text: String, symbol: String) {
+		switch gesture {
+		case .swipeUp: return (mac ? String(localized: "Mission Control") : String(localized: "Task View"), "rectangle.3.group")
+		case .swipeDown: return (mac ? String(localized: "App Exposé") : String(localized: "Show Desktop"), mac ? "rectangle.stack" : "menubar.dock.rectangle")
+		case .swipeLeft: return (mac ? String(localized: "Next Space") : String(localized: "Next Desktop"), "arrow.right.square")
+		case .swipeRight: return (mac ? String(localized: "Previous Space") : String(localized: "Previous Desktop"), "arrow.left.square")
+		case .spread: return (String(localized: "Show Desktop"), "menubar.dock.rectangle")
+		case .pinch: return (mac ? String(localized: "Spotlight") : String(localized: "Start"), mac ? "magnifyingglass" : "square.grid.2x2")
+		}
+	}
+
 	func trackpadTouchBegan() {
 		// a new touch stops a glide, so a tap lands where the cursor is now
 		stopMomentum()
@@ -1807,7 +1832,10 @@ extension ParsecViewController: TrackpadDelegate {
 
 	func trackpadGesture(_ gesture: TrackpadGesture) {
 		guard ParsecBackgroundManager.shared.hasActiveConnection else { return }
-		let keys = trackpadKeys(gesture, hostOS: DataManager.model.hostOS)
+		let hostOS = DataManager.model.hostOS
+		let title = Self.gestureTitle(gesture, mac: hostOS == macHostOS)
+		trackpad.showHUD(title: title.text, symbol: title.symbol)
+		let keys = trackpadKeys(gesture, hostOS: hostOS)
 		appNote("[trackpad] \(gesture) -> \(keys)")
 		for key in keys { CParsec.sendKeyboardMessage(keyCode: key, pressed: true) }
 		for key in keys.reversed() { CParsec.sendKeyboardMessage(keyCode: key, pressed: false) }

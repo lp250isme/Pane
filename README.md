@@ -53,6 +53,8 @@ In portrait, and on the lower half of a half-folded iPhone Duo, the picture sits
 | Four finger spread | Show Desktop |
 | Four finger pinch | Spotlight (Windows: Start) |
 
+A toolbar under the trackpad holds the stream menu, Mission Control, Show Desktop and the keyboard, so nothing covers the picture. Fingers show as soft lights on the glass and each multi-finger gesture briefly names what it did.
+
 With the keyboard up, the iPhone keyboard takes the lower part and a row of Mac keys sits above it: Esc, ⌃, ⌥, ⌘, ⇧, Tab, F1 to F12, the arrows and Delete. A modifier stays down until the next key. Turn the trackpad off in Settings > Trackpad Below the Picture.
 
 **Mac hosts**
@@ -189,6 +191,8 @@ Pane 是 kv 開發的開源 iOS / iPadOS [Parsec](https://parsec.app) 用戶端�
 | 三或四指左右滑 | 切換桌面空間（Windows：虛擬桌面） |
 | 四指張開 | 顯示桌面 |
 | 四指捏合 | Spotlight（Windows：開始功能表） |
+
+觸控板下方的工具列放著串流選單、指揮中心、顯示桌面和鍵盤，畫面上不會有任何按鈕。手指在玻璃上會顯示淡淡的光點，多指手勢觸發時會短暫顯示它做了什麼。
 
 叫出鍵盤時，下方換成 iPhone 鍵盤，上面多一排 Mac 按鍵：Esc、⌃、⌥、⌘、⇧、Tab、F1 到 F12、方向鍵和 Delete。修飾鍵會按住，直到按下一個鍵。可以在「設定 > 畫面下方當觸控板」關閉。
 
