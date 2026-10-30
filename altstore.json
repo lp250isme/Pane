@@ -2,8 +2,8 @@
     "name": "Pane",
     "subtitle": "Parsec client for iPhone Duo and iOS",
     "description": "An open-source iOS/iPadOS client for Parsec with iPhone Duo support and a native iOS UI. Fork of hugeBlack/OpenParsec.",
-    "iconURL": "https://raw.githubusercontent.com/lp250isme/OpenParsec/feat/iphone-duo/OpenParsec/Assets.xcassets/IconTransparent.imageset/icon.png",
-    "website": "https://github.com/lp250isme/OpenParsec",
+    "iconURL": "https://raw.githubusercontent.com/lp250isme/Pane/feat/iphone-duo/OpenParsec/Assets.xcassets/IconTransparent.imageset/icon.png",
+    "website": "https://github.com/lp250isme/Pane",
     "apps": [
         {
             "beta": true,
@@ -12,14 +12,14 @@
             "developerName": "lp250isme",
             "subtitle": "Parsec client for iPhone Duo and iOS",
             "localizedDescription": "An open-source iOS/iPadOS client for Parsec with iPhone Duo support and a native iOS UI. Fork of hugeBlack/OpenParsec.",
-            "iconURL": "https://raw.githubusercontent.com/lp250isme/OpenParsec/feat/iphone-duo/OpenParsec/Assets.xcassets/IconTransparent.imageset/icon.png",
+            "iconURL": "https://raw.githubusercontent.com/lp250isme/Pane/feat/iphone-duo/OpenParsec/Assets.xcassets/IconTransparent.imageset/icon.png",
             "tintColor": "#FF7A17",
             "screenshotURLs": [],
             "versions": [
                 {
                     "version": "1.4.0",
                     "date": "2026-10-30",
-                    "downloadURL": "https://github.com/lp250isme/OpenParsec/releases/latest/download/Pane.ipa",
+                    "downloadURL": "https://github.com/lp250isme/Pane/releases/latest/download/Pane.ipa",
                     "size": 5030373
                 }
             ],
