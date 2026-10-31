@@ -8,6 +8,7 @@ let appLog = OSLog(subsystem: "com.aigch.OpenParsec", category: "app")
 
 func appNote(_ text: String) {
 	os_log("%{public}@", log: appLog, text)
+	diag(text)
 }
 
 // ponytail: probe for the display switch that snaps back on a Mac host. A plain file in Documents (shown in
@@ -378,6 +379,11 @@ class ParsecSDKBridge: ParsecService {
 						self.didSetResolution = true
 						if model.hostDefaultBitrate == 0 {
 							model.hostDefaultBitrate = cfg.encoderMaxBitrate
+							// a host that still runs our last cellular cap would pass it off as its own default
+							let capped = UserDefaults.standard.integer(forKey: "hostBitrateBeforeCap")
+							if capped > 0 && cfg.encoderMaxBitrate == meteredBitrate(hostDefault: capped) {
+								model.hostDefaultBitrate = capped
+							}
 						}
 						model.resolutionX = SettingsHandler.resolution.width
 						model.resolutionY = SettingsHandler.resolution.height
@@ -387,6 +393,14 @@ class ParsecSDKBridge: ParsecService {
 							if picked > 0 { model.bitrate = picked } else if model.hostDefaultBitrate > 0 { model.bitrate = model.hostDefaultBitrate }
 						} else if SettingsHandler.bitrate > 0 {
 							model.bitrate = SettingsHandler.bitrate
+						} else if NetworkWatcher.shared.metered {
+							// ponytail: judged at connect only; a reconnect (as on a network switch) judges again
+							model.bitrate = meteredBitrate(hostDefault: model.hostDefaultBitrate)
+							UserDefaults.standard.set(model.hostDefaultBitrate, forKey: "hostBitrateBeforeCap")
+							diag("[net] metered network, bitrate capped at \(model.bitrate) Mbps")
+						} else if model.hostDefaultBitrate > 0 {
+							// the host keeps a cap from before a reconnect, take it back off on Wi-Fi
+							model.bitrate = model.hostDefaultBitrate
 						}
 						// never tell the host 0 Mbps; output was just read, so the host stays on its current display
 						if model.bitrate > 0 { self.updateHostVideoConfig() }

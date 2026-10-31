@@ -13,6 +13,12 @@ class NetworkWatcher {
 	private var running = false
 	private var offline = false
 	private(set) var noNetwork = false
+	// cellular or Low Data Mode
+	private(set) var metered = false
+	// when the network came back or moved to another interface (Wi-Fi to cellular, another access point):
+	// a stream on the old path is gone, there's no point waiting out its failure
+	private(set) var changedAt: Date?
+	private var primary: String?
 	private var known = false
 	private var waiting: [() -> Void] = []
 
@@ -24,9 +30,17 @@ class NetworkWatcher {
 
 		monitor.pathUpdateHandler = { [weak self] path in
 			let status = path.status
+			let primary = path.availableInterfaces.first?.name
+			let metered = path.isExpensive || path.isConstrained
 			DispatchQueue.main.async {
 				guard let self = self else { return }
 				self.noNetwork = status == .unsatisfied
+				self.metered = metered
+				if self.known, status == .satisfied, self.offline || primary != self.primary {
+					self.changedAt = Date()
+				}
+				if status == .satisfied { self.primary = primary }
+				diag("[net] \(status) via \(primary ?? "none")\(metered ? ", metered" : "")")
 				if !self.known {
 					self.known = true
 					let runs = self.waiting

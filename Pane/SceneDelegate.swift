@@ -40,6 +40,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
 	func sceneDidBecomeActive(_ scene: UIScene) {
 		guard ParsecBackgroundManager.shared.ownsStream(scene) else { return }
+		ParsecBackgroundManager.shared.releaseHold()
 		if #available(iOS 15.0, *) {
 			PictureInPictureManager.shared.stopPiP()
 			if PictureInPictureManager.shared.stopFramePump() {
@@ -98,6 +99,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 			CParsec.sendReleaseMessage()
 			CParsec.pause()
 			ParsecBackgroundManager.shared.isPaused = true
+			ParsecBackgroundManager.shared.holdPausedStream()
 		}
 
 		if ParsecBackgroundManager.shared.hasActiveConnection {

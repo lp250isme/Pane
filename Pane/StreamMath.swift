@@ -148,3 +148,14 @@ func hostInt<F: BinaryFloatingPoint>(_ v: F) -> Int32 {
 	if v <= F(Int32.min) { return .min }
 	return Int32(v)
 }
+
+/// Seconds to wait before reconnect try `attempt` (0 = the first): soon at first, then backing off
+func reconnectGap(attempt: Int) -> Double {
+	[0, 2, 5, 10, 15][min(max(attempt, 0), 4)] + (attempt > 4 ? 5 : 0)
+}
+
+/// How long a lost stream keeps retrying once there is a network, before giving up
+let reconnectBudget: Double = 120
+
+/// The bitrate asked of the host on cellular or Low Data Mode when none was picked: the host's default, at most 10 Mbps
+func meteredBitrate(hostDefault: Int) -> Int { hostDefault > 0 ? min(hostDefault, 10) : 10 }

@@ -96,7 +96,8 @@ The bundle id is the same as OpenParsec's, so Pane installs over an existing Ope
 - **Mouse and keyboard**: USB and Bluetooth mice and keyboards work, Magic Keyboard included. A hardware keyboard types to the host as soon as it's attached; the keyboard button then brings up only the Mac key row. With a mouse or trackpad attached, the trackpad below the picture steps aside and the picture fills the screen. Option can be mapped to Command (Settings > Option Key as Command).
 - **Game controllers**: press any trigger while streaming and Parsec picks up the controller. Set up the host first, for example by installing its virtual USB driver.
 - **Picture in Picture** keeps the stream in a floating window when you leave the app (Settings > Picture in Picture).
-- **Auto Reconnect** quietly reconnects after a short network drop.
+- **Auto Reconnect** quietly reconnects after a network drop. Switching between Wi-Fi and cellular reconnects right away; with no network at all (an elevator, a tunnel) it waits for the network to come back, then keeps trying for up to two minutes. A quick trip to another app comes back to a live stream; after a longer one, Pane reconnects when you return.
+- **On cellular or Low Data Mode**, if you haven't picked a bitrate, the stream is capped at 10 Mbps.
 
 ### Settings
 
@@ -237,7 +238,8 @@ Bundle ID 跟 OpenParsec 相同，所以 Pane 會直接覆蓋已安裝的 OpenPa
 - **滑鼠與鍵盤**：支援 USB 和藍牙的滑鼠與鍵盤，包括 Magic Keyboard。接上實體鍵盤就能直接打字到主機，這時按鍵盤鈕只會叫出 Mac 按鍵列。接了滑鼠或觸控式軌跡板時，畫面下方的觸控板會收起，畫面改成滿版。Option 鍵可以當成 Command 鍵用（設定 > Option 鍵當 Command 鍵）。
 - **遊戲手把**：串流時按任一板機鍵，Parsec 就會抓到手把。使用前要先把主機端設好，例如安裝虛擬 USB 驅動。
 - **子母畫面**：離開 App 時串流會縮成浮動視窗（設定 > 子母畫面）。
-- **自動重新連線**：網路短暫斷線後會自動接回。
+- **自動重新連線**：網路斷線後會自動接回。Wi-Fi 和行動網路互切時會立刻重連；完全沒網路時（電梯、隧道）會等網路回來，再持續重試最多兩分鐘。切到別的 App 一下回來串流還在；離開比較久的話，回來時會自動重連。
+- **行動網路或低數據模式**：沒自己選過位元率時，串流上限是 10 Mbps。
 
 ### 設定
 

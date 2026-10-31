@@ -29,6 +29,8 @@ class ParsecBackgroundManager {
 	private(set) var isReconnecting = false
 	var reconnectAttempts = 0
 	var reconnectStartTime = Date()
+	// when the retries started, for reconnectBudget
+	var lostAt: Date?
 	var resumedAt: Date?
 	var isPaused = false
 	weak var glkViewController: RenderLoop?
@@ -85,6 +87,30 @@ class ParsecBackgroundManager {
 	func connectionDidEnd() {
 		hasActiveConnection = false
 		isPaused = false
+		releaseHold()
+	}
+
+	private var hold: UIBackgroundTaskIdentifier = .invalid
+
+	// keep the app running with the stream paused, so a quick trip to another app comes back to a live stream.
+	// Once iOS calls time, end it cleanly (the host frees the seat) and reconnect on return
+	func holdPausedStream() {
+		guard hold == .invalid else { return }
+		hold = UIApplication.shared.beginBackgroundTask(withName: "paused stream") { [weak self] in
+			guard let self = self else { return }
+			if self.hasActiveConnection && self.isPaused {
+				appNote("[background] out of background time, disconnecting, reconnect on return")
+				self.markForReconnect()
+				self.onShouldDisconnect?()
+			}
+			self.releaseHold()
+		}
+	}
+
+	func releaseHold() {
+		guard hold != .invalid else { return }
+		UIApplication.shared.endBackgroundTask(hold)
+		hold = .invalid
 	}
 
 	func sceneWillResignActive() {
@@ -123,6 +149,7 @@ class ParsecBackgroundManager {
 		didDisconnectDueToBackground = false
 		isReconnecting = false
 		reconnectAttempts = 0
+		lostAt = nil
 		resumeOnLaunch = false
 	}
 

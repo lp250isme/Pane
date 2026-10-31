@@ -202,3 +202,19 @@ import Testing
 		#expect(hostInt(CGFloat(-12.7)) == -12)
 	}
 }
+
+@Suite struct ReconnectTests {
+	@Test func 重試間隔遞增後封頂() {
+		#expect(reconnectGap(attempt: 0) == 0)
+		#expect(reconnectGap(attempt: 1) == 2)
+		#expect(reconnectGap(attempt: 4) == 15)
+		#expect(reconnectGap(attempt: 5) == 20)
+		#expect(reconnectGap(attempt: 50) == 20)
+	}
+
+	@Test func 計費網路的位元率最多10() {
+		#expect(meteredBitrate(hostDefault: 50) == 10)
+		#expect(meteredBitrate(hostDefault: 6) == 6)
+		#expect(meteredBitrate(hostDefault: 0) == 10)
+	}
+}

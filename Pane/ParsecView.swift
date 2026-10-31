@@ -13,6 +13,8 @@ struct ParsecStatusBar: View {
 	@Binding var isReconnecting: Bool
 	@Binding var connectionLost: Bool
 	@State var networkFailureSince: Date?
+	@State var lastSampleAt = Date.distantPast
+	@State var lastRTx: UInt32 = 0
 	@State var parsecViewController: ParsecViewController?
 	@State var wasDisconnected: Bool = true
 	let timer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
@@ -71,15 +73,21 @@ struct ParsecStatusBar: View {
 			if networkFailureSince == nil { networkFailureSince = Date() }
 			let lost = Date().timeIntervalSince(networkFailureSince!)
 			let justResumed = Date().timeIntervalSince(ParsecBackgroundManager.shared.resumedAt ?? .distantPast) < 10
+			// the network moved or dropped: the old path won't come back, skip the wait
+			let netMoved = Date().timeIntervalSince(NetworkWatcher.shared.changedAt ?? .distantPast) < 10 || NetworkWatcher.shared.noNetwork
+			if !connectionLost { diag("[net] failure started") }
 			connectionLost = true
-			if lost >= 3 || justResumed {
+			if lost >= 3 || justResumed || netMoved {
 				networkFailureSince = nil
 				connectionLost = false
 				ParsecBackgroundManager.shared.resumedAt = nil
 				status = NETWORK_ERR_INTERRUPTED
-				appNote("[stream] network failure held, treating it as a lost connection")
+				appNote("[stream] network failure \(netMoved ? "after a network change" : "held"), treating it as a lost connection")
 			}
 		} else {
+			if let since = networkFailureSince, status == PARSEC_OK, !pcs.networkFailure {
+				diag("[net] failure cleared after \(String(format: "%.1f", Date().timeIntervalSince(since)))s")
+			}
 			networkFailureSince = nil
 			connectionLost = false
 		}
@@ -89,7 +97,9 @@ struct ParsecStatusBar: View {
 				return
 			}
 
-			if status == PARSEC_CONNECTING && isReconnecting {
+			// a network that came back or moved since this try started makes the try stale
+			let netBack = (NetworkWatcher.shared.changedAt ?? .distantPast) > ParsecBackgroundManager.shared.reconnectStartTime
+			if status == PARSEC_CONNECTING && isReconnecting && !netBack {
 				if Date().timeIntervalSince(ParsecBackgroundManager.shared.reconnectStartTime) < 15 {
 					return
 				}
@@ -115,13 +125,17 @@ struct ParsecStatusBar: View {
 
 			if SettingsHandler.autoReconnect, !status.isPermanentFailure, let peerId = ParsecBackgroundManager.shared.lastPeerId {
 				let mgr = ParsecBackgroundManager.shared
-				if mgr.reconnectAttempts < 3 {
-					let gap: TimeInterval = mgr.reconnectAttempts == 0 ? 0 : mgr.reconnectAttempts == 1 ? 2 : 5
-					if Date().timeIntervalSince(mgr.reconnectStartTime) < gap {
+				let offline = NetworkWatcher.shared.noNetwork
+				// the budget runs from when there's a network: an elevator or a tunnel waits as long as it takes
+				if mgr.lostAt == nil || offline { mgr.lostAt = Date() }
+				if Date().timeIntervalSince(mgr.lostAt!) < reconnectBudget {
+					// no network: a try is bound to fail, wait for it to come back
+					if offline && isReconnecting { return }
+					if !netBack && Date().timeIntervalSince(mgr.reconnectStartTime) < reconnectGap(attempt: mgr.reconnectAttempts) {
 						return
 					}
-					mgr.reconnectAttempts += 1
-					appNote("[reconnect] attempt \(mgr.reconnectAttempts) after status \(status.rawValue)")
+					if !offline { mgr.reconnectAttempts += 1 }
+					appNote("[reconnect] attempt \(mgr.reconnectAttempts) after status \(status.rawValue)\(offline ? ", no network" : netBack ? ", network changed" : "")")
 					isReconnecting = true
 					mgr.reconnectStartTime = Date()
 					parsecViewController?.resetKeyState()
@@ -129,6 +143,7 @@ struct ParsecStatusBar: View {
 					return
 				}
 				mgr.reconnectAttempts = 0
+				mgr.lostAt = nil
 			}
 
 			isReconnecting = false
@@ -147,6 +162,7 @@ struct ParsecStatusBar: View {
 
 		if isReconnecting {
 			ParsecBackgroundManager.shared.reconnectAttempts = 0
+			ParsecBackgroundManager.shared.lostAt = nil
 			isReconnecting = false
 			appNote("[reconnect] live again")
 			ParsecView.getHostUserData()
@@ -159,6 +175,16 @@ struct ParsecStatusBar: View {
 			if let vc = parsecViewController {
 				CParsec.setFrame(vc.scrollView.bounds.width, vc.scrollView.bounds.height, vc.glkView.renderView.contentScaleFactor)
 			}
+		}
+
+		// a line every 15 s in diagnostics.log, so a stutter report comes with numbers
+		if Date().timeIntervalSince(lastSampleAt) >= 15 {
+			let m = pcs.`self`.metrics.0
+			let rtx = m.fastRTs + m.slowRTs
+			// the counters start over on a reconnect
+			diag("[net] rtt \(Int(m.networkLatency))ms, rtx +\(rtx >= lastRTx ? rtx - lastRTx : rtx), \(String(format: "%.1f", m.bitrate))Mbps, queue \(m.queuedFrames), decode \(String(format: "%.1f", m.decodeLatency))ms")
+			lastSampleAt = Date()
+			lastRTx = rtx
 		}
 
 		if showMenu || SettingsHandler.alwaysShowStatus {
@@ -277,6 +303,7 @@ struct ParsecView: View {
 					showDCAlert = false
 					isReconnecting = true
 					ParsecBackgroundManager.shared.reconnectAttempts = 0
+					ParsecBackgroundManager.shared.lostAt = nil
 					ParsecBackgroundManager.shared.reconnectStartTime = Date()
 					parsecViewController.resetKeyState()
 					CParsec.reconnect(peerId)
@@ -666,7 +693,7 @@ struct ParsecView: View {
 
 	// the host's live bitrate reads as Host Default while it matches, unless that exact number was picked
 	var bitrateIsHostDefault: Bool {
-		dataModel.hostDefaultBitrate > 0 && (dataModel.streamBitrate ?? SettingsHandler.bitrate) == 0
+		dataModel.hostDefaultBitrate > 0 && (dataModel.streamBitrate ?? SettingsHandler.bitrate) == 0 && dataModel.bitrate == dataModel.hostDefaultBitrate
 	}
 
 	var bitrateSummary: String {
@@ -744,6 +771,7 @@ struct ParsecView: View {
 					CParsec.sendReleaseMessage()
 					CParsec.pause()
 					ParsecBackgroundManager.shared.isPaused = true
+					ParsecBackgroundManager.shared.holdPausedStream()
 				} else {
 					if ParsecBackgroundManager.shared.isReconnecting {
 						return
@@ -767,6 +795,7 @@ struct ParsecView: View {
 					CParsec.sendReleaseMessage()
 					CParsec.pause()
 					ParsecBackgroundManager.shared.isPaused = true
+					ParsecBackgroundManager.shared.holdPausedStream()
 				}
 			}
 		}
