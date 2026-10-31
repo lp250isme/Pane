@@ -132,6 +132,9 @@ class ParsecSDKBridge: ParsecService {
 	var didSetResolution = false
 	private var didReleaseOnConnect = false
 	private var capsLock = false
+	// modifiers the host has been told are down. Every key goes out with them in its mod field, so a host
+	// that reads that field rather than its own key state still sees the ⌘ in ⌘C
+	private var heldMods: UInt32 = 0
 
 	public var mouseInfo = MouseInfo()
 
@@ -240,6 +243,7 @@ class ParsecSDKBridge: ParsecService {
 		msg.type = MESSAGE_RELEASE
 		ParsecClientSendMessage(_parsec, &msg)
 		isVirtualShiftOn = false
+		heldMods = 0
 		DispatchQueue.main.async {
 			NotificationCenter.default.post(name: NSNotification.Name("ParsecInputReleased"), object: nil)
 		}
@@ -577,32 +581,35 @@ class ParsecSDKBridge: ParsecService {
 		return (keyCode, useShift)
 	}
 
-	func sendVirtualKeyboardInput(text: String) {
+	private func sendKey(_ code: UInt32, _ pressed: Bool) {
+		if let bit = modifierBit(hidCode: code) {
+			if pressed { heldMods |= bit } else { heldMods &= ~bit }
+		}
+		var msg = ParsecMessage()
+		msg.type = MESSAGE_KEYBOARD
+		msg.keyboard.code = ParsecKeycode(code)
+		msg.keyboard.pressed = pressed
+		msg.keyboard.mod = ParsecKeymod(heldMods | (capsLock ? MOD_CAPS.rawValue : 0))
+		ParsecClientSendMessage(_parsec, &msg)
+	}
+
+	/// Types one key for `text`, then runs `then` once the key is back up (a latched modifier lets go after the key, not before)
+	func sendVirtualKeyboardInput(text: String, then: (() -> Void)? = nil) {
 		let (keyCode, useShift) = getKeyCodeByText(text: text)
 
 		guard let keyCode else {
+			then?()
 			return
 		}
-		var keyboardMessagePress = ParsecMessage()
-		keyboardMessagePress.type = MESSAGE_KEYBOARD
 		let sendShift = !isVirtualShiftOn && useShift
-		if sendShift {
-			keyboardMessagePress.keyboard = ParsecKeyboardMessage(code: KEY_LSHIFT, mod: MOD_NONE, pressed: true, __pad: (0, 0, 0))
-			ParsecClientSendMessage(_parsec, &keyboardMessagePress)
-		}
-		keyboardMessagePress.keyboard = ParsecKeyboardMessage(code: keyCode, mod: MOD_NONE, pressed: true, __pad: (0, 0, 0))
-		ParsecClientSendMessage(_parsec, &keyboardMessagePress)
+		if sendShift { sendKey(KEY_LSHIFT.rawValue, true) }
+		sendKey(keyCode.rawValue, true)
 
 		// add release delay in case some games ignore instant key release
 		DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
-			var release = ParsecMessage()
-			release.type = MESSAGE_KEYBOARD
-			release.keyboard = ParsecKeyboardMessage(code: keyCode, mod: MOD_NONE, pressed: false, __pad: (0, 0, 0))
-			ParsecClientSendMessage(self._parsec, &release)
-			if sendShift {
-				release.keyboard = ParsecKeyboardMessage(code: KEY_LSHIFT, mod: MOD_NONE, pressed: false, __pad: (0, 0, 0))
-				ParsecClientSendMessage(self._parsec, &release)
-			}
+			self.sendKey(keyCode.rawValue, false)
+			if sendShift { self.sendKey(KEY_LSHIFT.rawValue, false) }
+			then?()
 		}
 	}
 
@@ -616,39 +623,19 @@ class ParsecSDKBridge: ParsecService {
 		if keyCode.rawValue == 225 {
 			isVirtualShiftOn = isOn
 		}
-
-		var keyboardMessagePress = ParsecMessage()
-		keyboardMessagePress.type = MESSAGE_KEYBOARD
-		keyboardMessagePress.keyboard.pressed = isOn
-		keyboardMessagePress.keyboard.code = keyCode
-		ParsecClientSendMessage(_parsec, &keyboardMessagePress)
-
+		sendKey(keyCode.rawValue, isOn)
 	}
 
 	func sendKeyboardMessage(event: KeyBoardKeyEvent) {
-		if event.input == nil {
-			return
-		}
-
-		var keyboardMessagePress = ParsecMessage()
-		keyboardMessagePress.type = MESSAGE_KEYBOARD
-		keyboardMessagePress.keyboard.code = ParsecKeycode(UInt32(KeyCodeTranslators.uiKeyCodeToInt(key: event.input?.keyCode ?? UIKeyboardHIDUsage.keyboardErrorUndefined)))
-		keyboardMessagePress.keyboard.pressed = event.isPressBegin
-		capsLock = event.input?.modifierFlags.contains(.alphaShift) == true
-		keyboardMessagePress.keyboard.mod = capsLock ? MOD_CAPS : MOD_NONE
-		ParsecClientSendMessage(_parsec, &keyboardMessagePress)
+		guard let input = event.input else { return }
+		capsLock = input.modifierFlags.contains(.alphaShift)
+		sendKey(UInt32(KeyCodeTranslators.uiKeyCodeToInt(key: input.keyCode)), event.isPressBegin)
 	}
 
-	func sendKeyboardMessage(keyCode: UInt32, pressed: Bool)
-	{
-		var keyboardMessagePress = ParsecMessage()
-		keyboardMessagePress.type = MESSAGE_KEYBOARD
-		keyboardMessagePress.keyboard.code = ParsecKeycode(keyCode)
-		keyboardMessagePress.keyboard.pressed = pressed
-		keyboardMessagePress.keyboard.mod = capsLock ? MOD_CAPS : MOD_NONE
-		ParsecClientSendMessage(_parsec, &keyboardMessagePress)
+	func sendKeyboardMessage(keyCode: UInt32, pressed: Bool) {
+		sendKey(keyCode, pressed)
 	}
-	
+
 	func sendGameControllerButtonMessage(controllerId: UInt32, _ button:ParsecGamepadButton, pressed: Bool)
 	{
 		var pmsg = ParsecMessage()

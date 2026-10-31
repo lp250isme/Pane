@@ -1527,13 +1527,11 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 
 	// a modifier latched on the key row applies to the next key only, like sticky keys on a Mac
 	func insertText(_ text: String) {
-		CParsec.sendVirtualKeyboardInput(text: text)
-		clearToolbarModifiers(sendToHost: true)
+		CParsec.sendVirtualKeyboardInput(text: text) { [weak self] in self?.clearToolbarModifiers(sendToHost: true) }
 	}
 
 	func deleteBackward() {
-		CParsec.sendVirtualKeyboardInput(text: "BACKSPACE")
-		clearToolbarModifiers(sendToHost: true)
+		CParsec.sendVirtualKeyboardInput(text: "BACKSPACE") { [weak self] in self?.clearToolbarModifiers(sendToHost: true) }
 	}
 
 	// Mac order: esc and the modifiers, the function row, then the arrows and delete
@@ -1550,7 +1548,9 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 			(1...12).map { key("F\($0)", "F\($0)", false) },
 			[key("←", "LEFT", false), key("↓", "DOWN", false), key("↑", "UP", false), key("→", "RIGHT", false),
 			 key("⌦", "DELETE", false)],
-			[combo("⌘⇥", [HIDKey.gui, HIDKey.tab]), combo("⌘␣", [HIDKey.gui, HIDKey.space]), combo("⌘H", [HIDKey.gui, HIDKey.h]),
+			[combo("⌘C", [HIDKey.primary, HIDKey.c]), combo("⌘V", [HIDKey.primary, HIDKey.v]), combo("⌘X", [HIDKey.primary, HIDKey.x]),
+			 combo("⌘Z", [HIDKey.primary, HIDKey.z]), combo("⌘A", [HIDKey.primary, HIDKey.a]),
+			 combo("⌘⇥", [HIDKey.gui, HIDKey.tab]), combo("⌘␣", [HIDKey.gui, HIDKey.space]), combo("⌘H", [HIDKey.gui, HIDKey.h]),
 			 combo("⌘⇧3", [HIDKey.gui, HIDKey.shift, HIDKey.three]), combo("⌘⇧4", [HIDKey.gui, HIDKey.shift, HIDKey.four])],
 		]
 	}
@@ -1720,9 +1720,11 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 
 	@objc func toolbarButtonClicked(_ sender: KeyboardButton) {
 		if !sender.combo.isEmpty {
-			for key in sender.combo { CParsec.sendKeyboardMessage(keyCode: key, pressed: true) }
-			for key in sender.combo.reversed() { CParsec.sendKeyboardMessage(keyCode: key, pressed: false) }
+			// a combo carries its own modifiers; a latched one on top would make ⌘C something else
 			clearToolbarModifiers(sendToHost: true)
+			let keys = hostKeys(sender.combo, hostOS: DataManager.model.hostOS)
+			for key in keys { CParsec.sendKeyboardMessage(keyCode: key, pressed: true) }
+			for key in keys.reversed() { CParsec.sendKeyboardMessage(keyCode: key, pressed: false) }
 			return
 		}
 		let isToggleable = sender.isToggleable
@@ -1742,8 +1744,7 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 				CParsec.sendVirtualKeyboardInput(text: keyText, isOn: false)
 			}
 		} else {
-			CParsec.sendVirtualKeyboardInput(text: keyText)
-			clearToolbarModifiers(sendToHost: true)
+			CParsec.sendVirtualKeyboardInput(text: keyText) { [weak self] in self?.clearToolbarModifiers(sendToHost: true) }
 		}
 
 	}

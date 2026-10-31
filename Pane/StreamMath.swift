@@ -68,6 +68,29 @@ enum HIDKey {
 	static let d: UInt32 = 7, h: UInt32 = 11, three: UInt32 = 32, four: UInt32 = 33, tab: UInt32 = 43, space: UInt32 = 44, f11: UInt32 = 68
 	static let right: UInt32 = 79, left: UInt32 = 80, down: UInt32 = 81, up: UInt32 = 82
 	static let ctrl: UInt32 = 224, shift: UInt32 = 225, alt: UInt32 = 226, gui: UInt32 = 227
+	static let a: UInt32 = 4, c: UInt32 = 6, v: UInt32 = 25, x: UInt32 = 27, z: UInt32 = 29
+	// stands for ⌘ on a Mac host and Ctrl elsewhere, resolved by hostKeys
+	static let primary: UInt32 = 0xFFFF
+}
+
+/// A combo as the host should get it: copy and paste are ⌘ on a Mac, Ctrl on Windows
+func hostKeys(_ combo: [UInt32], hostOS: Int?) -> [UInt32] {
+	combo.map { $0 == HIDKey.primary ? (hostOS == macHostOS ? HIDKey.gui : HIDKey.ctrl) : $0 }
+}
+
+/// The SDK's mod-field bit for a modifier's HID code (left and right ctrl, shift, alt, gui), nil for other keys
+func modifierBit(hidCode: UInt32) -> UInt32? {
+	switch hidCode {
+	case 224: return 0x0040
+	case 225: return 0x0001
+	case 226: return 0x0100
+	case 227: return 0x0400
+	case 228: return 0x0080
+	case 229: return 0x0002
+	case 230: return 0x0200
+	case 231: return 0x0800
+	default: return nil
+	}
 }
 
 enum TrackpadGesture: Equatable {

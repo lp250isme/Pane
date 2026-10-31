@@ -218,3 +218,18 @@ import Testing
 		#expect(meteredBitrate(hostDefault: 0) == 10)
 	}
 }
+
+@Suite struct ComboKeyTests {
+	@Test func 複製貼上在Mac是Cmd在Windows是Ctrl() {
+		#expect(hostKeys([HIDKey.primary, HIDKey.c], hostOS: macHostOS) == [HIDKey.gui, HIDKey.c])
+		#expect(hostKeys([HIDKey.primary, HIDKey.v], hostOS: 0) == [HIDKey.ctrl, HIDKey.v])
+		#expect(hostKeys([HIDKey.gui, HIDKey.tab], hostOS: 0) == [HIDKey.gui, HIDKey.tab])
+	}
+
+	@Test func 修飾鍵對到SDK的mod位元() {
+		#expect(modifierBit(hidCode: HIDKey.gui) == 0x0400)
+		#expect(modifierBit(hidCode: HIDKey.shift) == 0x0001)
+		#expect(modifierBit(hidCode: 231) == 0x0800)
+		#expect(modifierBit(hidCode: HIDKey.c) == nil)
+	}
+}
