@@ -233,3 +233,21 @@ import Testing
 		#expect(modifierBit(hidCode: HIDKey.c) == nil)
 	}
 }
+
+@Suite struct ComposerTests {
+	@Test func 注音拼音假名才用輸入框() {
+		#expect(needsComposer(language: "zh-Hant"))
+		#expect(needsComposer(language: "ja-JP"))
+		#expect(!needsComposer(language: "en-US"))
+		#expect(!needsComposer(language: "emoji"))
+		#expect(!needsComposer(language: nil))
+	}
+
+	@Test func 單一ASCII字元送按鍵其他走剪貼簿() {
+		#expect(typesAsKey("c"))
+		#expect(typesAsKey("\n"))
+		#expect(!typesAsKey("你"))
+		#expect(!typesAsKey("😀"))
+		#expect(!typesAsKey("ab"))
+	}
+}

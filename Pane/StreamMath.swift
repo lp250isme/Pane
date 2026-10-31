@@ -78,6 +78,16 @@ func hostKeys(_ combo: [UInt32], hostOS: Int?) -> [UInt32] {
 	combo.map { $0 == HIDKey.primary ? (hostOS == macHostOS ? HIDKey.gui : HIDKey.ctrl) : $0 }
 }
 
+/// Keyboards that compose in marked text (注音, pinyin, kana) and so need a real text field to type into.
+/// ponytail: Korean left out, its keyboard rewrites the last syllable rather than marking it
+func needsComposer(language: String?) -> Bool {
+	guard let language else { return false }
+	return ["zh", "ja", "yue"].contains { language.hasPrefix($0) }
+}
+
+/// Sent as one key when the host's keys can type it, otherwise as text through the host's clipboard
+func typesAsKey(_ text: String) -> Bool { text.count == 1 && text.allSatisfy(\.isASCII) }
+
 /// The SDK's mod-field bit for a modifier's HID code (left and right ctrl, shift, alt, gui), nil for other keys
 func modifierBit(hidCode: UInt32) -> UInt32? {
 	switch hidCode {

@@ -372,6 +372,7 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 			object: nil
 		)
 
+		NotificationCenter.default.addObserver(self, selector: #selector(inputModeChanged), name: UITextInputMode.currentInputModeDidChangeNotification, object: nil)
 		for name in [Notification.Name.GCKeyboardDidConnect, .GCKeyboardDidDisconnect] {
 			NotificationCenter.default.addObserver(self, selector: #selector(hardwareKeyboardChanged), name: name, object: nil)
 		}
@@ -387,6 +388,8 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 			name: UIApplication.willResignActiveNotification,
 			object: nil
 		)
+		// made now rather than lazily inside a layout pass
+		_ = composer
 
 	}
 
@@ -399,17 +402,17 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
         keyboardAccessoriesView = nil
         if keyboardVisible {
             configureKeyPlacement()
-            reloadInputViews()
+            reloadKeyboard()
         }
 	}
 
 	override func viewDidLayoutSubviews() {
 		super.viewDidLayoutSubviews()
 		// folding or unfolding with the keyboard up moves the keys without a size change
-		if keyboardVisible && isFirstResponder {
+		if keyboardVisible && ownsKeyboard {
 			let before = keysInShortcutBar
 			configureKeyPlacement()
-			if before != keysInShortcutBar { reloadInputViews() }
+			if before != keysInShortcutBar { reloadKeyboard() }
 		}
 		// glkView/contentView get sized from possibly-stale bounds in viewDidLoad and have no
 		// autoresizing, so the stream renders in a corner until layout re-applies the size.
@@ -496,6 +499,7 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 		}
 		if keyboardVisible || GCKeyboard.coalesced != nil {
 			becomeFirstResponder()
+			inputModeChanged()
 		}
 		// (Pinch-to-zoom is driven manually via touchOverlay; the scroll view's pinch stays off.)
 	}
@@ -514,6 +518,26 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	}
 	
 	
+	// Chinese and Japanese keyboards compose in marked text, which a plain key input can't hold. While one is up,
+	// typing goes to this field instead, and each word is sent as it is picked
+	private lazy var composer: ComposerField = {
+		let field = ComposerField()
+		field.owner = self
+		field.addTarget(self, action: #selector(composerChanged), for: .editingChanged)
+		field.alpha = 0
+		view.addSubview(field)
+		field.translatesAutoresizingMaskIntoConstraints = false
+		NSLayoutConstraint.activate([
+			field.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+			field.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor, constant: -8),
+			field.heightAnchor.constraint(equalToConstant: 40),
+			field.widthAnchor.constraint(lessThanOrEqualTo: view.widthAnchor, constant: -32),
+		])
+		return field
+	}()
+
+	// moving the keyboard between the two may post a hide that isn't one
+	private var handingOffKeyboard = false
 	private var repeatTimer: Timer?
 	private var repeatKeyCode: Int = -1
 	private var optCmdRemapActive = false
@@ -648,7 +672,7 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	@objc func keyboardWillShow(notification: NSNotification) {
 		// keyboard notifications are app wide; another window's text field is not ours
 		// first responder only for a hardware keyboard: whatever iPadOS shows there isn't our keyboard
-		guard isFirstResponder, keyboardVisible else { return }
+		guard ownsKeyboard, keyboardVisible else { return }
 		checkShortcutBar()
 		if let keyboardFrame = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
 			let keyboardFrameInView = view.convert(keyboardFrame, from: nil)
@@ -767,7 +791,12 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	}
 
 	@objc func keyboardWillHide(notification: NSNotification) {
-		guard keyboardVisible else { return }
+		guard keyboardVisible, !handingOffKeyboard else { return }
+		// the system put the keyboard away (iPad's hide key, a sheet): a half-composed word goes with it
+		if !(composer.text ?? "").isEmpty {
+			composer.text = ""
+			composerChanged()
+		}
 		let appliedHeight = keyboardHeight
 		keyboardHeight = 0.0
         keyboardVisible = false
@@ -1486,9 +1515,10 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 		return true
 	}
 
+	// every keyboard, so 注音 and the like are on the globe key; they type through the composer
 	var keyboardType: UIKeyboardType {
 		get {
-			return .asciiCapable
+			return .default
 		}
 		set {
 
@@ -1520,6 +1550,11 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 		get { .none }
 		set { }
 	}
+	// dark like the key row, and the same as the composer's, or switching keyboards flips its colour
+	var keyboardAppearance: UIKeyboardAppearance {
+		get { .dark }
+		set { }
+	}
 
 	override var canBecomeFirstResponder: Bool {
 		return true
@@ -1527,11 +1562,69 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 
 	// a modifier latched on the key row applies to the next key only, like sticky keys on a Mac
 	func insertText(_ text: String) {
-		CParsec.sendVirtualKeyboardInput(text: text) { [weak self] in self?.clearToolbarModifiers(sendToHost: true) }
+		typeText(text)
+	}
+
+	// one key the host can type goes as that key; anything else (Chinese, emoji, a word) as text through the host's clipboard
+	private func typeText(_ text: String) {
+		let asKey = typesAsKey(text)
+		// a modifier latched over a paste would turn ⌘V into something else
+		if !asKey { clearToolbarModifiers(sendToHost: true) }
+		CParsec.type(text, asKey: asKey) { [weak self] in self?.clearToolbarModifiers(sendToHost: true) }
+	}
+
+	// the keyboard is ours whichever of the two holds it
+	private var ownsKeyboard: Bool { isFirstResponder || composer.isFirstResponder }
+
+	// reloadInputViews only reaches the responder it's called on
+	private func reloadKeyboard() {
+		if composer.isFirstResponder { composer.reloadInputViews() } else { reloadInputViews() }
+	}
+
+
+	@objc private func inputModeChanged() {
+		guard keyboardVisible, ownsKeyboard else { return }
+		let language = (composer.isFirstResponder ? composer.textInputMode : textInputMode)?.primaryLanguage
+		// dictation and emoji go to whichever holds the keyboard; swapping would cut dictation off
+		if language == "dictation" || language == "emoji" { return }
+		// a hardware keyboard types raw keys to the host, which a text field in between would eat
+		let wantComposer = needsComposer(language: language) && GCKeyboard.coalesced == nil
+		// not inside the mode change itself, the keyboard is still switching
+		DispatchQueue.main.async { [self] in
+			guard keyboardVisible else { return }
+			handingOffKeyboard = true
+			if wantComposer {
+				if isFirstResponder { composer.becomeFirstResponder() }
+			} else if composer.isFirstResponder {
+				composer.text = ""
+				composerChanged()
+				becomeFirstResponder()
+			}
+			DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { self.handingOffKeyboard = false }
+		}
+	}
+
+	@objc private func composerChanged() {
+		if let text = composer.text, !text.isEmpty, composer.markedTextRange == nil {
+			composer.text = ""
+			typeText(text)
+		}
+		// shown only while there is something being composed
+		composer.alpha = (composer.text ?? "").isEmpty ? 0 : 1
+		view.bringSubviewToFront(composer)
+		composer.invalidateIntrinsicContentSize()
+	}
+
+	fileprivate func composerReturn() {
+		typeText("\n")
+	}
+
+	fileprivate func composerDeleteEmpty() {
+		deleteBackward()
 	}
 
 	func deleteBackward() {
-		CParsec.sendVirtualKeyboardInput(text: "BACKSPACE") { [weak self] in self?.clearToolbarModifiers(sendToHost: true) }
+		CParsec.type("BACKSPACE", asKey: true) { [weak self] in self?.clearToolbarModifiers(sendToHost: true) }
 	}
 
 	// Mac order: esc and the modifiers, the function row, then the arrows and delete
@@ -1591,12 +1684,12 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 	func checkShortcutBar() {
 		guard keysInShortcutBar else { return }
 		DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
-			guard let self, self.keysInShortcutBar, self.isFirstResponder else { return }
+			guard let self, self.keysInShortcutBar, self.ownsKeyboard else { return }
 			let shown = self.shortcutBarKeys.contains { $0.window != nil }
 			guard !shown else { self.shortcutBarShown = true; return }
 			self.shortcutBarShown = false
 			self.configureKeyPlacement()
-			self.reloadInputViews()
+			self.reloadKeyboard()
 		}
 	}
 
@@ -1744,7 +1837,7 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 				CParsec.sendVirtualKeyboardInput(text: keyText, isOn: false)
 			}
 		} else {
-			CParsec.sendVirtualKeyboardInput(text: keyText) { [weak self] in self?.clearToolbarModifiers(sendToHost: true) }
+			CParsec.type(keyText, asKey: true) { [weak self] in self?.clearToolbarModifiers(sendToHost: true) }
 		}
 
 	}
@@ -1765,8 +1858,10 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
                 // hidden again before this ran: raising it now would leave a keyboard nobody tracks
                 guard self.keyboardVisible else { return }
                 self.configureKeyPlacement()
-                self.reloadInputViews()
-                let success = self.becomeFirstResponder()
+                self.reloadKeyboard()
+                let success = self.composer.isFirstResponder || self.becomeFirstResponder()
+                // a keyboard left on 注音 last time comes up on it, without a mode change to say so
+                DispatchQueue.main.async { self.inputModeChanged() }
                 // already first responder for a hardware keyboard, the key row may come up without a show notification
                 if GCKeyboard.coalesced != nil { self.onKeyboardVisibilityChanged?(true) }
                 if !success {
@@ -1778,6 +1873,10 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 			// keyboardVisible stays set so keyboardWillHide undoes the lift and tells SwiftUI; clearing it
 			// first made the handler bail. Called again for when no notification comes (hardware keyboard),
 			// a no-op once it ran
+			composer.text = ""
+			composerChanged()
+			handingOffKeyboard = false
+			composer.resignFirstResponder()
 			resignFirstResponder()
 			keyboardWillHide(notification: NSNotification(name: UIResponder.keyboardWillHideNotification, object: nil))
 			// a hardware keyboard keeps typing once the key row is gone
@@ -1787,6 +1886,65 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 		}
 	}
 
+}
+
+/// The field 注音, pinyin and kana type into: it holds the marked text while a word is composed, shows it
+/// above the keyboard, and carries the stream's key row with it
+class ComposerField: UITextField, UITextFieldDelegate {
+	weak var owner: ParsecViewController?
+
+	override init(frame: CGRect) {
+		super.init(frame: frame)
+		delegate = self
+		overrideUserInterfaceStyle = .dark
+		backgroundColor = UIColor(white: 0.07, alpha: 0.96)
+		textColor = .white
+		tintColor = .white
+		font = .systemFont(ofSize: 17)
+		layer.cornerRadius = 10
+		layer.cornerCurve = .continuous
+		autocorrectionType = .no
+		spellCheckingType = .no
+		smartQuotesType = .no
+		smartDashesType = .no
+		autocapitalizationType = .none
+		returnKeyType = .default
+		keyboardAppearance = .dark
+	}
+
+	required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+	override var inputAccessoryView: UIView? {
+		get { owner?.inputAccessoryView }
+		set { }
+	}
+	override var inputAssistantItem: UITextInputAssistantItem { owner?.inputAssistantItem ?? super.inputAssistantItem }
+
+	private let inset = UIEdgeInsets(top: 0, left: 12, bottom: 0, right: 12)
+	override func textRect(forBounds bounds: CGRect) -> CGRect { bounds.inset(by: inset) }
+	override func editingRect(forBounds bounds: CGRect) -> CGRect { bounds.inset(by: inset) }
+	override var intrinsicContentSize: CGSize {
+		let size = super.intrinsicContentSize
+		return CGSize(width: max(80, size.width + inset.left + inset.right), height: size.height)
+	}
+
+	// empty, it must not take touches meant for the stream
+	override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+		!(text ?? "").isEmpty && super.point(inside: point, with: event)
+	}
+
+	// an empty field still has a host to delete from
+	override func deleteBackward() {
+		if (text ?? "").isEmpty { owner?.composerDeleteEmpty() }
+		super.deleteBackward()
+	}
+
+	// while a word is being composed, return belongs to the keyboard (it picks the word)
+	func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+		guard markedTextRange == nil else { return true }
+		owner?.composerReturn()
+		return false
+	}
 }
 
 protocol ParsecTouchInputDelegate: AnyObject {

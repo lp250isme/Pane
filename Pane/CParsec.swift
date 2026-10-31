@@ -153,8 +153,8 @@ protocol ParsecService {
 	func sendMousePosition(_ x: Int32, _ y: Int32)
 	func sendKeyboardMessage(event: KeyBoardKeyEvent)
 	func sendKeyboardMessage(keyCode: UInt32, pressed: Bool)
-	func sendVirtualKeyboardInput(text: String, then: (() -> Void)?)
 	func sendVirtualKeyboardInput(text: String, isOn: Bool)
+	func type(_ text: String, asKey: Bool, then: (() -> Void)?)
 	func sendGameControllerButtonMessage(controllerId: UInt32, _ button: ParsecGamepadButton, pressed: Bool)
 	func sendGameControllerAxisMessage(controllerId: UInt32, _ button: ParsecGamepadAxis, _ value: Int16)
 	func sendGameControllerUnplugMessage(controllerId: UInt32)
@@ -273,12 +273,13 @@ class CParsec {
 		parsecImpl.sendKeyboardMessage(keyCode: keyCode, pressed: pressed)
 	}
 
-	static func sendVirtualKeyboardInput(text: String, then: (() -> Void)? = nil) {
-		parsecImpl.sendVirtualKeyboardInput(text: text, then: then)
-	}
-
 	static func sendVirtualKeyboardInput(text: String, isOn: Bool) {
 		parsecImpl.sendVirtualKeyboardInput(text: text, isOn: isOn)
+	}
+
+	/// On-screen typing, in order: a key (a character, or a name like BACKSPACE), or text pasted through the host's clipboard
+	static func type(_ text: String, asKey: Bool, then: (() -> Void)? = nil) {
+		parsecImpl.type(text, asKey: asKey, then: then)
 	}
 
 	static func sendGameControllerButtonMessage(controllerId: UInt32, _ button: ParsecGamepadButton, pressed: Bool) {

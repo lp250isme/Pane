@@ -25,6 +25,8 @@ struct ParsecDisplayConfig: Codable, Hashable {
 }
 
 enum ParsecUserDataType: UInt32 {
+	// plain UTF-8 text both ways, as in the SDK's own client example; the host can turn it off (app_copy_paste)
+	case clipboard = 7
 	case getVideoConfig = 9
 	case getAdapterInfo = 10
 	case setVideoConfig = 11

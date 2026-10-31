@@ -203,6 +203,19 @@ class ParsecSDKBridge: ParsecService {
 
 		self.startBackgroundTask()
 		didReleaseOnConnect = false
+		typeQueue = []
+		typing = false
+		typeGeneration += 1
+		awaitingEcho = nil
+		pastedSinceRestore = false
+		restoreClipboard?.cancel()
+		// another host's clipboard must not be restored onto this one; a reconnect to the same host keeps it
+		if peerID != clipboardPeer {
+			clipboardPeer = peerID
+			hostClipboard = nil
+			hostEchoes = nil
+			ownClipboardTexts = []
+		}
 
 		let status = ParsecClientConnect(_parsec, &parsecClientCfg, NetworkHandler.clinfo?.session_id, peerID)
 
@@ -358,8 +371,12 @@ class ParsecSDKBridge: ParsecService {
 		if pointer == nil {
 			return
 		}
-		diag("recv \(event.id) \(String(cString: pointer!.assumingMemoryBound(to: CChar.self)))")
+		// the clipboard can hold anything, keep it out of the log
+		diag("recv \(event.id) \(event.id == ParsecUserDataType.clipboard.rawValue ? "(clipboard)" : String(cString: pointer!.assumingMemoryBound(to: CChar.self)))")
 		switch event.id {
+		case ParsecUserDataType.clipboard.rawValue:
+			let text = String(cString: pointer!.assumingMemoryBound(to: CChar.self))
+			DispatchQueue.main.async { self.hostClipboardChanged(text) }
 		case 11:
 			do {
 				let decoder = JSONDecoder()
@@ -634,6 +651,121 @@ class ParsecSDKBridge: ParsecService {
 
 	func sendKeyboardMessage(keyCode: UInt32, pressed: Bool) {
 		sendKey(keyCode, pressed)
+	}
+
+	// Typing from the on-screen keyboard: keys and pasted text wait in one line, so they reach the host in the
+	// order typed. Text the host's keys can't type (Chinese, emoji) goes through its clipboard and a paste; text
+	// queued back to back goes as one paste, and the host's own clipboard text goes back once typing stops.
+	// ponytail: only text is restored, and only once the host has said what it holds (it does on a copy)
+	private enum Typed { case key(String), paste(String) }
+	private var typeQueue: [(Typed, (() -> Void)?)] = []
+	private var typing = false
+	// a connect starts over; typing still under way belongs to the old session
+	private var typeGeneration = 0
+	private var hostClipboard: String?
+	private var clipboardPeer: String?
+	// what we put on the host clipboard lately: its echo is not the user's own copy
+	private var ownClipboardTexts: [String] = []
+	// the text a paste waits to see echoed, and what to do when it is
+	private var awaitingEcho: (id: Int, text: String, go: () -> Void)?
+	private var pasteCount = 0
+	// nil until a first paste shows whether this host sends our own text back
+	private var hostEchoes: Bool?
+	private var pastedSinceRestore = false
+	private var restoreClipboard: DispatchWorkItem?
+
+	func type(_ text: String, asKey: Bool, then: (() -> Void)?) {
+		if !asKey, case (.paste(let earlier), let earlierThen)? = typeQueue.last {
+			typeQueue[typeQueue.count - 1] = (.paste(earlier + text), { earlierThen?(); then?() })
+		} else {
+			typeQueue.append((asKey ? .key(text) : .paste(text), then))
+		}
+		restoreClipboard?.cancel()
+		if !typing { typeNext() }
+	}
+
+	private func typeNext() {
+		guard !typeQueue.isEmpty else {
+			typing = false
+			scheduleRestore()
+			return
+		}
+		typing = true
+		let generation = typeGeneration
+		let (item, then) = typeQueue.removeFirst()
+		let next = { [weak self] in
+			guard let self, generation == self.typeGeneration else { return }
+			then?()
+			self.typeNext()
+		}
+		switch item {
+		case .key(let text): sendVirtualKeyboardInput(text: text, then: next)
+		case .paste(let text): paste(text, generation: generation, then: next)
+		}
+	}
+
+	private func paste(_ text: String, generation: Int, then: @escaping () -> Void) {
+		pastedSinceRestore = true
+		setHostClipboard(text)
+		let sendPaste = { [weak self] in
+			guard let self, generation == self.typeGeneration else { return }
+			let keys = hostKeys([HIDKey.primary, HIDKey.v], hostOS: DataManager.model.hostOS)
+			keys.forEach { self.sendKey($0, true) }
+			keys.reversed().forEach { self.sendKey($0, false) }
+			DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: then)
+		}
+		// a host that never echoes: give the text a moment to arrive (the clipboard message and the keys travel apart)
+		if hostEchoes == false {
+			DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: sendPaste)
+			return
+		}
+		// a host that echoes has taken the text once it sends it back: paste then. Without that echo, a host
+		// with clipboard sharing off would paste whatever it held before, so don't
+		pasteCount += 1
+		let id = pasteCount
+		awaitingEcho = (id, text, { [weak self] in
+			self?.awaitingEcho = nil
+			self?.hostEchoes = true
+			sendPaste()
+		})
+		DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+			guard let self, generation == self.typeGeneration, self.awaitingEcho?.id == id else { return }
+			self.awaitingEcho = nil
+			if self.hostEchoes == true {
+				diag("[paste] the host didn't take the text, nothing pasted")
+				then()
+			} else {
+				// the first paste here: this host doesn't echo, paste blind from now on
+				diag("[paste] the host sends no clipboard echo, pasting without one")
+				self.hostEchoes = false
+				sendPaste()
+			}
+		}
+	}
+
+	private func scheduleRestore() {
+		guard pastedSinceRestore, let saved = hostClipboard else { return }
+		let restore = DispatchWorkItem { [weak self] in
+			self?.pastedSinceRestore = false
+			self?.setHostClipboard(saved)
+		}
+		restoreClipboard = restore
+		DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: restore)
+	}
+
+	private func setHostClipboard(_ text: String) {
+		ownClipboardTexts = Array((ownClipboardTexts + [text]).suffix(8))
+		sendUserData(type: .clipboard, message: Data(text.utf8))
+	}
+
+	// the host's clipboard as it sent it: our own text coming back, or something the user copied there
+	private func hostClipboardChanged(_ text: String) {
+		if let i = ownClipboardTexts.firstIndex(of: text) {
+			ownClipboardTexts.remove(at: i)
+			if awaitingEcho?.text == text { awaitingEcho?.go() }
+		} else {
+			hostClipboard = text
+		}
 	}
 
 	func sendGameControllerButtonMessage(controllerId: UInt32, _ button:ParsecGamepadButton, pressed: Bool)
