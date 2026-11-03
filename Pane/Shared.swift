@@ -83,6 +83,8 @@ class SharedModel: ObservableObject {
 	@Published var streamBitrate: Int?
 	// a host reply older than our own change must not undo it
 	var localChangeAt = Date.distantPast
+	var autoBitrate = AutoBitrate()
+	var bestRtt = 0.0
 
 	func reset() {
 		resolutionX = 0
@@ -96,6 +98,8 @@ class SharedModel: ObservableObject {
 		hostOS = nil
 		streamBitrate = nil
 		localChangeAt = .distantPast
+		autoBitrate = AutoBitrate()
+		bestRtt = 0
 	}
 }
 

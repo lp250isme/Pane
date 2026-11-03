@@ -831,17 +831,6 @@
         }
       }
     },
-    "Matches the Mac's Accessibility > Pointer Control > Trackpad Options > Dragging Style, which Pane can't read: set both the same. Three fingers drag, and swiping between desktops and Mission Control move to four fingers.": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "跟 Mac「輔助使用 > 指標控制 > 觸控式軌跡板選項 > 拖移方式」一樣，Pane 讀不到 Mac 的設定，請照 Mac 那邊手動開關。打開後三指移動就是拖曳，切換桌面和指揮中心改用四指。"
-          }
-        }
-      }
-    },
     "Loading...": {
       "localizations": {
         "zh-Hant": {
@@ -888,6 +877,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "與 Parsec 的連線中斷"
+          }
+        }
+      }
+    },
+    "Matches the Mac's Accessibility > Pointer Control > Trackpad Options > Dragging Style, which Pane can't read: set both the same. Three fingers drag, and swiping between desktops and Mission Control move to four fingers.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "跟 Mac「輔助使用 > 指標控制 > 觸控式軌跡板選項 > 拖移方式」一樣，Pane 讀不到 Mac 的設定，請照 Mac 那邊手動開關。打開後三指移動就是拖曳，切換桌面和指揮中心改用四指。"
           }
         }
       }
@@ -1131,6 +1131,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "密碼"
+          }
+        }
+      }
+    },
+    "Pastes what you copied on this device where the cursor is. Text you copy on the host can be pasted here.": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把這台裝置上複製的文字貼到游標處。在主機上複製的文字，這台裝置也能貼。"
           }
         }
       }

@@ -191,7 +191,24 @@ class CParsec {
 	static var rendererName: String { runningRenderer == .metal ? "Metal" : "OpenGL" }
 	static var setupError: (line: String, at: Date)?
 
-	static var parsecImpl: ParsecService!
+	// a reconnect swaps it on the main thread while the render thread or Picture in Picture polls frames through it
+	private static let implLock = NSLock()
+	private static var impl: ParsecService!
+	static var parsecImpl: ParsecService! {
+		get {
+			implLock.lock()
+			defer { implLock.unlock() }
+			return impl
+		}
+		set {
+			implLock.lock()
+			let old = impl
+			impl = newValue
+			implLock.unlock()
+			// the old one goes away outside the lock, after any poll still holding it returns
+			_ = old
+		}
+	}
 
 	static func initialize() {
 		parsecImpl = ParsecSDKBridge()

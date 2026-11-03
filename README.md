@@ -90,7 +90,7 @@ The bundle id is the same as OpenParsec's, so Pane installs over an existing Ope
 | One finger drag | Move the cursor | Drag at your finger |
 | Long press, then drag | Hold the left button (drag files and windows) | — |
 | Two finger tap | Right click | Right click |
-| Two finger drag | Scroll | Scroll |
+| Two finger drag | Scroll, sideways too | Scroll, sideways too |
 | Pinch | Zoom the picture (when Pinch to Zoom is on) | Same |
 | Three finger tap | Show or hide the keyboard | Same |
 
@@ -100,6 +100,8 @@ The bundle id is the same as OpenParsec's, so Pane installs over an existing Ope
 - **Picture in Picture** keeps the stream in a floating window when you leave the app (Settings > Picture in Picture).
 - **Auto Reconnect** quietly reconnects after a network drop. Switching between Wi-Fi and cellular reconnects right away; with no network at all (an elevator, a tunnel) it waits for the network to come back, then keeps trying for up to two minutes. A quick trip to another app comes back to a live stream; after a longer one, Pane reconnects when you return.
 - **On cellular or Low Data Mode**, if you haven't picked a bitrate, the stream is capped at 10 Mbps.
+- **Bitrate follows the connection** while you haven't picked one: when frames pile up or the latency swells for a few seconds, Pane asks the host for a lower bitrate, and steps back up after half a minute of smooth streaming. A hot phone or Low Power Mode lowers the ceiling, and a hot phone shows at most 60 frames a second. Picking a bitrate in the menu turns this off for the stream.
+- **Clipboard**: text you copy on the host can be pasted on the phone, and Paste in the menu pastes what you copied on the phone where the host's cursor is (iOS 16 or later). It needs the host's `app_copy_paste` on.
 
 ### Settings
 
@@ -115,6 +117,8 @@ The bundle id is the same as OpenParsec's, so Pane installs over an existing Ope
 
 **The stream lags, or the bitrate stays under 10 Mbps**
 Run the network test in Steam Link. Constant lag spikes in the graph point to an Apple Wi-Fi issue that apps can't fix ([discussion](https://github.com/moonlight-stream/moonlight-ios/issues/627)). Moving the router to channel 149 helps. If you can't, power off nearby Apple devices (Macs especially), test again with only the streaming device on, and then turn the others back on. The improvement can last hours or days.
+
+On the host, Parsec's Bandwidth Limit (Settings > Host) is 10 Mbps out of the box and caps every guest; raise it to 25 or more. A Mac on Ethernet and a phone on 5 GHz or 6 GHz Wi-Fi help most. Prefer 4:4:4 trades latency for sharper text, so leave it off on a weak link; if H.265 stutters, go back to H.264.
 
 **Switching display jumps back to the main monitor**
 This is a known issue with some Mac hosts and is being investigated. The app writes `diagnostics.log`, which you can find in the Files app under On My iPhone > Pane. Attaching it to an issue helps.
@@ -234,7 +238,7 @@ Bundle ID 跟 OpenParsec 相同，所以 Pane 會直接覆蓋已安裝的 OpenPa
 | 單指拖曳 | 移動游標 | 在手指位置拖曳 |
 | 長按後拖曳 | 按住左鍵（拖曳檔案、視窗） | — |
 | 雙指點一下 | 右鍵 | 右鍵 |
-| 雙指拖曳 | 捲動 | 捲動 |
+| 雙指拖曳 | 捲動，可以左右捲 | 捲動，可以左右捲 |
 | 雙指開合 | 縮放畫面（雙指縮放開啟時） | 同左 |
 | 三指點一下 | 叫出或收起鍵盤 | 同左 |
 
@@ -244,6 +248,8 @@ Bundle ID 跟 OpenParsec 相同，所以 Pane 會直接覆蓋已安裝的 OpenPa
 - **子母畫面**：離開 App 時串流會縮成浮動視窗（設定 > 子母畫面）。
 - **自動重新連線**：網路斷線後會自動接回。Wi-Fi 和行動網路互切時會立刻重連；完全沒網路時（電梯、隧道）會等網路回來，再持續重試最多兩分鐘。切到別的 App 一下回來串流還在；離開比較久的話，回來時會自動重連。
 - **行動網路或低數據模式**：沒自己選過位元率時，串流上限是 10 Mbps。
+- **位元率跟著連線走**：沒自己選過位元率時，畫面排隊或延遲暴增持續幾秒，Pane 就請主機降位元率，順順跑半分鐘後再升回一檔。手機發燙或開了低電量模式會壓低上限，發燙時畫面最多每秒 60 幀。在選單選了位元率，這次串流就不再自動調。
+- **剪貼簿**：在主機上複製的文字可以在手機上貼；選單裡的「貼上」會把手機上複製的文字貼到主機游標處（iOS 16 以上）。主機的 `app_copy_paste` 要開著。
 
 ### 設定
 
@@ -259,6 +265,8 @@ Bundle ID 跟 OpenParsec 相同，所以 Pane 會直接覆蓋已安裝的 OpenPa
 
 **串流卡頓，或碼率一直上不了 10 Mbps**
 先用 Steam Link 跑網路測試。圖上如果一直有延遲尖峰，就是 Apple Wi-Fi 的問題，App 這邊修不了（[相關討論](https://github.com/moonlight-stream/moonlight-ios/issues/627)）。把路由器頻道改到 149 會有幫助。改不了的話，把附近的 Apple 裝置（尤其是 Mac）都關機，只開要串流的裝置再測一次，沒問題了再把其他裝置開回來，通常可以維持幾小時到幾天。
+
+主機端的 Parsec「Bandwidth Limit」（設定 > Host）預設 10 Mbps，而且所有連線者共用，建議調到 25 以上。Mac 接有線網路、手機連 5 GHz 或 6 GHz Wi-Fi 最有感。Prefer 4:4:4 是用延遲換文字清晰度，網路差時請關掉；H.265 會卡的話就改回 H.264。
 
 **切換螢幕後又跳回主螢幕**
 這是部分 Mac 主機的已知問題，正在調查中。App 會寫一份 `diagnostics.log`，可以在「檔案」App 的「我的 iPhone > Pane」裡找到，附在 issue 裡會很有幫助。

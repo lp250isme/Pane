@@ -1,6 +1,7 @@
 import ParsecSDK
 import MetalKit
 import UIKit
+import UniformTypeIdentifiers
 import os
 
 let sdkLog = OSLog(subsystem: "com.aigch.OpenParsec", category: "sdk")
@@ -209,6 +210,7 @@ class ParsecSDKBridge: ParsecService {
 		awaitingEcho = nil
 		pastedSinceRestore = false
 		restoreClipboard?.cancel()
+		connectedAt = .distantFuture
 		// another host's clipboard must not be restored onto this one; a reconnect to the same host keeps it
 		if peerID != clipboardPeer {
 			clipboardPeer = peerID
@@ -398,13 +400,18 @@ class ParsecSDKBridge: ParsecService {
 					}
 					if !self.didSetResolution {
 						self.didSetResolution = true
+						self.connectedAt = Date()
 						if model.hostDefaultBitrate == 0 {
 							model.hostDefaultBitrate = cfg.encoderMaxBitrate
-							// a host that still runs our last cellular cap would pass it off as its own default
-							let capped = UserDefaults.standard.integer(forKey: "hostBitrateBeforeCap")
-							if capped > 0 && cfg.encoderMaxBitrate == meteredBitrate(hostDefault: capped) {
+							// a host still running a bitrate we asked of it would pass that off as its own default
+							let defaults = UserDefaults.standard
+							if let held = defaults.array(forKey: "hostBitrateHeld.\(self.clipboardPeer ?? "")") as? [Int] {
+								if held.count > 1, held.dropFirst().contains(cfg.encoderMaxBitrate) { model.hostDefaultBitrate = held[0] }
+							} else if case let capped = defaults.integer(forKey: "hostBitrateBeforeCap"), capped > 0, cfg.encoderMaxBitrate == meteredBitrate(hostDefault: capped) {
+								// what 1.5's cellular cap left behind
 								model.hostDefaultBitrate = capped
 							}
+							defaults.removeObject(forKey: "hostBitrateBeforeCap")
 						}
 						model.resolutionX = SettingsHandler.resolution.width
 						model.resolutionY = SettingsHandler.resolution.height
@@ -417,7 +424,6 @@ class ParsecSDKBridge: ParsecService {
 						} else if NetworkWatcher.shared.metered {
 							// ponytail: judged at connect only; a reconnect (as on a network switch) judges again
 							model.bitrate = meteredBitrate(hostDefault: model.hostDefaultBitrate)
-							UserDefaults.standard.set(model.hostDefaultBitrate, forKey: "hostBitrateBeforeCap")
 							diag("[net] metered network, bitrate capped at \(model.bitrate) Mbps")
 						} else if model.hostDefaultBitrate > 0 {
 							// the host keeps a cap from before a reconnect, take it back off on Wi-Fi
@@ -664,6 +670,7 @@ class ParsecSDKBridge: ParsecService {
 	private var typeGeneration = 0
 	private var hostClipboard: String?
 	private var clipboardPeer: String?
+	private var connectedAt = Date.distantPast
 	// what we put on the host clipboard lately: its echo is not the user's own copy
 	private var ownClipboardTexts: [String] = []
 	// the text a paste waits to see echoed, and what to do when it is
@@ -764,6 +771,11 @@ class ParsecSDKBridge: ParsecService {
 			ownClipboardTexts.remove(at: i)
 			if awaitingEcho?.text == text { awaitingEcho?.go() }
 		} else {
+			// a copy on the host is ready to paste here too. Not what the host holds as the stream starts, which isn't
+			// a copy made for this device; local only, or Universal Clipboard hands it back to the Mac
+			if text != hostClipboard && Date().timeIntervalSince(connectedAt) > 3 {
+				UIPasteboard.general.setItems([[UTType.utf8PlainText.identifier: text]], options: [.localOnly: true])
+			}
 			hostClipboard = text
 		}
 	}
@@ -834,8 +846,9 @@ class ParsecSDKBridge: ParsecService {
 			}
 		}
 
-		DispatchQueue.global().async(execute: audio)
-		DispatchQueue.global().async(execute: event)
+		// sound and the cursor are what a hand on the screen notices first
+		DispatchQueue.global(qos: .userInteractive).async(execute: audio)
+		DispatchQueue.global(qos: .userInteractive).async(execute: event)
 	}
 
 	func sendUserData(type: ParsecUserDataType, message: Data) {
@@ -856,6 +869,20 @@ class ParsecSDKBridge: ParsecService {
 		videoConfig.video[0].resolutionX = size.x
 		videoConfig.video[0].resolutionY = size.y
 		videoConfig.video[0].encoderMaxBitrate = DataManager.model.bitrate
+		// the host keeps what we ask after we leave: note its own default, so the next connect isn't fooled
+		let model = DataManager.model
+		if model.hostDefaultBitrate > 0 {
+			let key = "hostBitrateHeld.\(clipboardPeer ?? "")"
+			if model.bitrate != model.hostDefaultBitrate {
+				// the last few sent, since one sent as the link failed may never have arrived
+				var held = UserDefaults.standard.array(forKey: key) as? [Int] ?? []
+				held = held.first == model.hostDefaultBitrate ? Array(held.dropFirst()) : []
+				held = Array((held.filter { $0 != model.bitrate } + [model.bitrate]).suffix(4))
+				UserDefaults.standard.set([model.hostDefaultBitrate] + held, forKey: key)
+			} else {
+				UserDefaults.standard.removeObject(forKey: key)
+			}
+		}
 		videoConfig.video[0].fullFPS = DataManager.model.constantFps
 		videoConfig.video[0].output = DataManager.model.output
 		let encoder = JSONEncoder()

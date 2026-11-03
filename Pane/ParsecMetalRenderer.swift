@@ -32,26 +32,33 @@ extension ParsecFrame {
 	}
 }
 
-class ParsecMetalRenderer: NSObject, MTKViewDelegate {
+// Frames are waited for, uploaded and shown on a thread of their own: the main thread stays free for touches,
+// and a frame goes to the screen the moment it arrives instead of at the next display tick.
+class ParsecMetalRenderer: NSObject {
 	private let queue: MTLCommandQueue
 	private let pipeline: MTLRenderPipelineState
 	private let sampler: MTLSamplerState
-	private let inFlight = DispatchSemaphore(value: 3)
+	// two in flight at most: while an upload runs, only the slot shown last can still be read by the GPU
+	private let inFlight = DispatchSemaphore(value: 2)
 	private var planes: [(y: MTLTexture, c: MTLTexture)?] = [nil, nil, nil]
 	private var current = -1
+	private var lastShownSlot = -1
 	private var frameSize = CGSize.zero
-	let updateImage: () -> Void
+	private var fresh = false
+
+	private let lock = NSLock()
+	private var running = false
+	private var redraw = false
+	private var thread: Thread?
+	private let stopped = DispatchSemaphore(value: 0)
+	private var layer: CAMetalLayer?
+	private var size: CGSize?
+	// the frame rate setting or the screen's rate: a host sending faster would only queue drawables
+	var minInterval: CFTimeInterval = 0
 
 	var device: MTLDevice { queue.device }
 
-	private var lastSize: CGSize = .zero
-	private var lastScale: CGFloat = 0
-	private var drawnFrames = 0
-	private var lastRateSample = CACurrentMediaTime()
-	private var lastDrawAt: CFTimeInterval = 0
-	private var drawIntervals: [CFTimeInterval] = []
-
-	init?(_ device: MTLDevice, _ updateImage: @escaping () -> Void) {
+	init?(_ device: MTLDevice) {
 		guard let queue = device.makeCommandQueue() else { return nil }
 		let pipeline: MTLRenderPipelineState
 		do {
@@ -72,21 +79,121 @@ class ParsecMetalRenderer: NSObject, MTKViewDelegate {
 		self.queue = queue
 		self.pipeline = pipeline
 		self.sampler = sampler
-		self.updateImage = updateImage
 		super.init()
 	}
 
+	// only while stopped
 	func reset() {
 		planes = [nil, nil, nil]
 		current = -1
-		lastDrawAt = 0
-		drawIntervals.removeAll()
+		lastShownSlot = -1
+	}
+
+	func start(_ layer: CAMetalLayer) {
+		guard thread == nil else { return }
+		self.layer = layer
+		lock.lock()
+		running = true
+		redraw = true
+		lock.unlock()
+		let t = Thread { [self] in loop() }
+		t.name = "pane.render"
+		t.qualityOfService = .userInteractive
+		thread = t
+		t.start()
+	}
+
+	// waits for the thread to finish, so Picture in Picture can poll frames right after
+	func stop() {
+		guard thread != nil else { return }
+		lock.lock()
+		running = false
+		lock.unlock()
+		stopped.wait()
+		thread = nil
+	}
+
+	// the drawable size is changed on the render thread, between drawables; the last frame is shown again at it
+	func resize(_ px: CGSize) {
+		lock.lock()
+		size = px
+		redraw = true
+		lock.unlock()
+	}
+
+	private func loop() {
+		let me = Unmanaged.passUnretained(self).toOpaque()
+		var lastShown: CFTimeInterval = 0
+		var pending = false
+		// no drawable last time: try again at the normal poll pace, not in a tight loop
+		var missed = false
+		var shown = 0
+		var sampleAt = CACurrentMediaTime()
+		// a hot phone shows at most 60 frames a second
+		var hot = false
+		while true {
+			lock.lock()
+			let go = running
+			if redraw { pending = true }
+			redraw = false
+			let px = size
+			size = nil
+			lock.unlock()
+			guard go else { break }
+			if let px = px { layer?.drawableSize = px }
+
+			inFlight.wait()
+			let polledAt = CACurrentMediaTime()
+			let gap = hot ? max(minInterval, 0.75 / 60) : minInterval
+			// a frame held back by the gap goes out as soon as the gap is over, unless a newer one comes first
+			let wait = pending && !missed ? UInt32(max(1, min(16, (gap - (polledAt - lastShown)) * 1000))) : 16
+			let status = CParsec.pollFrame(timeout: wait, callback: frameCallback, opaque: me)
+			if fresh { pending = true }
+			fresh = false
+			let now = CACurrentMediaTime()
+			if pending && now - lastShown >= gap {
+				if show() {
+					pending = false
+					missed = false
+					lastShown = now
+					shown += 1
+				} else {
+					// nothing to show before the first frame; a missing drawable is tried again
+					pending = current >= 0
+					missed = pending
+					inFlight.signal()
+				}
+			} else {
+				inFlight.signal()
+			}
+			// not connected: the poll returns at once, don't spin
+			if status != PARSEC_OK && wait >= 16 && now - polledAt < 0.002 {
+				usleep(8_000)
+			}
+
+			let elapsed = now - sampleAt
+			if elapsed >= 1 {
+				let rate = elapsed <= 2 ? Double(shown) / elapsed : nil
+				shown = 0
+				sampleAt = now
+				let warm = ProcessInfo.processInfo.thermalState.rawValue >= 2
+				if warm != hot {
+					hot = warm
+					diag("[render] \(hot ? "hot, at most 60 fps" : "cooled down, full rate")")
+				}
+				if let rate = rate {
+					DispatchQueue.main.async { CParsec.drawRate = rate }
+				}
+			}
+		}
+		stopped.signal()
 	}
 
 	fileprivate func upload(_ f: ParsecFrame, _ image: UnsafeRawPointer) {
 		let w = Int(f.width), h = Int(f.height), stride = Int(f.fullWidth), rows = Int(f.fullHeight)
 		guard f.isWholeNV12 else { return }
-		let slot = (current + 1) % planes.count
+		var slot = (current + 1) % planes.count
+		if slot == lastShownSlot { slot = (slot + 1) % planes.count }
 		if planes[slot]?.y.width != w || planes[slot]?.y.height != h {
 			planes[slot] = makePlanes(w, h)
 		}
@@ -95,6 +202,7 @@ class ParsecMetalRenderer: NSObject, MTKViewDelegate {
 		p.c.replace(region: MTLRegionMake2D(0, 0, (w + 1) / 2, (h + 1) / 2), mipmapLevel: 0, withBytes: image + stride * rows, bytesPerRow: stride)
 		current = slot
 		frameSize = CGSize(width: w, height: h)
+		fresh = true
 		if #available(iOS 15.0, *) {
 			PictureInPictureManager.shared.feedFrame(f, image)
 		}
@@ -107,72 +215,34 @@ class ParsecMetalRenderer: NSObject, MTKViewDelegate {
 		return (y, c)
 	}
 
-	func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) { }
-
-	func draw(in view: MTKView) {
-		// height too: fold / tabletop changes can keep the width
-		let viewSize = view.frame.size
-		if abs(viewSize.width - lastSize.width) > 0.1 || abs(viewSize.height - lastSize.height) > 0.1 || abs(view.contentScaleFactor - lastScale) > 0.01 {
-			CParsec.setFrame(viewSize.width, viewSize.height, view.contentScaleFactor)
-			lastSize = viewSize
-			lastScale = view.contentScaleFactor
-		}
-		let size = CGSize(width: (view.bounds.width * view.contentScaleFactor).rounded(), height: (view.bounds.height * view.contentScaleFactor).rounded())
-		if view.drawableSize != size {
-			view.drawableSize = size
-		}
-
-		let tickAt = CACurrentMediaTime()
-		if lastDrawAt > 0 {
-			drawIntervals.append(tickAt - lastDrawAt)
-			if drawIntervals.count > 32 {
-				drawIntervals.removeFirst()
-			}
-		}
-		lastDrawAt = tickAt
-		var fps = view.preferredFramesPerSecond > 0 ? view.preferredFramesPerSecond : 60
-		if drawIntervals.count == 32, let tick = drawIntervals.min(), tick > 0 {
-			fps = max(Int((1 / tick).rounded()), 30)
-		}
-		let timeout = UInt32(max(1000 / fps, 8))
-
-		inFlight.wait()
-		CParsec.pollFrame(timeout: timeout, callback: frameCallback, opaque: Unmanaged.passUnretained(self).toOpaque())
-
-		guard let pass = view.currentRenderPassDescriptor, let drawable = view.currentDrawable,
-			  let cb = queue.makeCommandBuffer(), let enc = cb.makeRenderCommandEncoder(descriptor: pass) else {
-			inFlight.signal()
-			return
-		}
-		if current >= 0, let p = planes[current] {
-			let d = view.drawableSize
-			let s = min(d.width / frameSize.width, d.height / frameSize.height)
-			let w = frameSize.width * s
-			let h = frameSize.height * s
-			enc.setViewport(MTLViewport(originX: Double((d.width - w) / 2), originY: Double((d.height - h) / 2), width: Double(w), height: Double(h), znear: 0, zfar: 1))
-			enc.setRenderPipelineState(pipeline)
-			enc.setFragmentTexture(p.y, index: 0)
-			enc.setFragmentTexture(p.c, index: 1)
-			enc.setFragmentSamplerState(sampler, index: 0)
-			enc.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
-		}
+	// on success the semaphore is signalled when the GPU is done
+	private func show() -> Bool {
+		lock.lock()
+		let go = running
+		lock.unlock()
+		guard go, current >= 0, let p = planes[current], let drawable = layer?.nextDrawable(), let cb = queue.makeCommandBuffer() else { return false }
+		let pass = MTLRenderPassDescriptor()
+		pass.colorAttachments[0].texture = drawable.texture
+		pass.colorAttachments[0].loadAction = .clear
+		pass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
+		pass.colorAttachments[0].storeAction = .store
+		guard let enc = cb.makeRenderCommandEncoder(descriptor: pass) else { return false }
+		let dw = CGFloat(drawable.texture.width), dh = CGFloat(drawable.texture.height)
+		let s = min(dw / frameSize.width, dh / frameSize.height)
+		let w = frameSize.width * s
+		let h = frameSize.height * s
+		enc.setViewport(MTLViewport(originX: Double((dw - w) / 2), originY: Double((dh - h) / 2), width: Double(w), height: Double(h), znear: 0, zfar: 1))
+		enc.setRenderPipelineState(pipeline)
+		enc.setFragmentTexture(p.y, index: 0)
+		enc.setFragmentTexture(p.c, index: 1)
+		enc.setFragmentSamplerState(sampler, index: 0)
+		enc.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
 		enc.endEncoding()
 		cb.present(drawable)
+		lastShownSlot = current
 		let sem = inFlight
 		cb.addCompletedHandler { _ in sem.signal() }
 		cb.commit()
-
-		drawnFrames += 1
-		let now = CACurrentMediaTime()
-		let elapsed = now - lastRateSample
-		if elapsed >= 1 {
-			if elapsed <= 2 {
-				CParsec.drawRate = Double(drawnFrames) / elapsed
-			}
-			drawnFrames = 0
-			lastRateSample = now
-		}
-
-		updateImage()
+		return true
 	}
 }

@@ -251,3 +251,66 @@ import Testing
 		#expect(!typesAsKey("ab"))
 	}
 }
+
+@Suite struct AutoBitrateTests {
+	let steps = [3, 5, 7, 10, 15, 20, 25, 30, 35, 40, 45, 50]
+
+	@Test func 吃緊三秒才降且一次降到七成以下的檔位() {
+		var a = AutoBitrate()
+		#expect(a.next(now: 0, strained: true, current: 30, ceiling: 30, steps: steps) == nil)
+		#expect(a.next(now: 2.5, strained: true, current: 30, ceiling: 30, steps: steps) == nil)
+		#expect(a.next(now: 3, strained: true, current: 30, ceiling: 30, steps: steps) == 20)
+		// ten seconds between changes, so the host's encoder isn't restarted over and over
+		#expect(a.next(now: 8, strained: true, current: 20, ceiling: 30, steps: steps) == nil)
+		#expect(a.next(now: 13, strained: true, current: 20, ceiling: 30, steps: steps) == 10)
+	}
+
+	@Test func 中間順一下就重新計時() {
+		var a = AutoBitrate()
+		_ = a.next(now: 0, strained: true, current: 30, ceiling: 30, steps: steps)
+		_ = a.next(now: 2, strained: false, current: 30, ceiling: 30, steps: steps)
+		#expect(a.next(now: 3.5, strained: true, current: 30, ceiling: 30, steps: steps) == nil)
+	}
+
+	@Test func 不低於下限() {
+		var a = AutoBitrate()
+		_ = a.next(now: 0, strained: true, current: 5, ceiling: 30, steps: steps)
+		#expect(a.next(now: 5, strained: true, current: 5, ceiling: 30, steps: steps) == nil)
+	}
+
+	@Test func 順三十秒升一檔且不超過上限() {
+		var a = AutoBitrate()
+		#expect(a.next(now: 0, strained: false, current: 20, ceiling: 32, steps: steps) == nil)
+		#expect(a.next(now: 30, strained: false, current: 20, ceiling: 32, steps: steps) == 25)
+		#expect(a.next(now: 60, strained: false, current: 30, ceiling: 32, steps: steps) == 32)
+		#expect(a.next(now: 120, strained: false, current: 32, ceiling: 32, steps: steps) == nil)
+	}
+
+	@Test func 上限下修時立刻降() {
+		var a = AutoBitrate()
+		#expect(a.next(now: 0, strained: false, current: 30, ceiling: 18, steps: steps) == 15)
+	}
+
+	@Test func 過熱與低電量壓低上限() {
+		#expect(loadCeiling(50, thermal: 0, lowPower: false) == 50)
+		#expect(loadCeiling(50, thermal: 0, lowPower: true) == 40)
+		#expect(loadCeiling(50, thermal: 2, lowPower: false) == 30)
+		#expect(loadCeiling(50, thermal: 3, lowPower: true) == 20)
+		#expect(loadCeiling(5, thermal: 3, lowPower: false) == 3)
+	}
+
+	@Test func 排隊或延遲暴增算吃緊() {
+		#expect(linkStrained(queuedFrames: 3, rtt: 5, bestRtt: 5))
+		#expect(linkStrained(queuedFrames: 0, rtt: 50, bestRtt: 8))
+		#expect(!linkStrained(queuedFrames: 1, rtt: 20, bestRtt: 8))
+		#expect(!linkStrained(queuedFrames: 0, rtt: 200, bestRtt: 0))
+	}
+}
+
+@Suite struct ScrollAxisTests {
+	@Test func 幾乎直的捲動丟掉橫向飄移() {
+		#expect(mainAxis(CGPoint(x: 2, y: 10)) == CGPoint(x: 0, y: 10))
+		#expect(mainAxis(CGPoint(x: -12, y: 3)) == CGPoint(x: -12, y: 0))
+		#expect(mainAxis(CGPoint(x: 8, y: 10)) == CGPoint(x: 8, y: 10))
+	}
+}

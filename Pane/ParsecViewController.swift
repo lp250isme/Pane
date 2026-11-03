@@ -37,6 +37,7 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	let edgeScrollMaxSpeed: CGFloat = 900.0
 	var cursorVelocity: CGPoint = .zero     // content points / sec
 	var scrollVelocity: Float = 0.0         // wheel units / sec
+	var scrollVelocityX: Float = 0.0
 	var lastCursorMoveTime: CFTimeInterval = 0
 	var lastScrollMoveTime: CFTimeInterval = 0
 	let flingMinSpeed: CGFloat = 80.0       // min release speed (content pts/sec) to start a cursor glide
@@ -74,6 +75,7 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 
 	enum TwoFingerMode { case undecided, zoom, scroll }
 	var twoFingerMode: TwoFingerMode = .undecided
+	var scrollAxis = CGPoint(x: 1, y: 1)
 	var startPinchDistance: CGFloat = 0
 	var lastPinchDistance: CGFloat = 0
 	var startTwoFingerMidpoint: CGPoint = .zero
@@ -1111,6 +1113,9 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 			if distDelta > deadZone || midDelta > deadZone {
 				twoFingerMode = (distDelta > midDelta && zoomEnabled) ? .zoom : .scroll
 				twoFingerDidMove = true
+				// a scroll that starts mostly one way keeps to that axis until the fingers lift
+				let axis = mainAxis(CGPoint(x: d.midpoint.x - startTwoFingerMidpoint.x, y: d.midpoint.y - startTwoFingerMidpoint.y))
+				scrollAxis = midDelta > deadZone ? CGPoint(x: axis.x == 0 ? 0 : 1, y: axis.y == 0 ? 0 : 1) : CGPoint(x: 1, y: 1)
 			}
 		}
 		switch twoFingerMode {
@@ -1119,7 +1124,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 				applyZoom(to: scrollView.zoomScale * (d.distance / lastPinchDistance), anchorInView: CGPoint(x: d.midpoint.x - scrollView.frame.minX, y: d.midpoint.y - scrollView.frame.minY))
 			}
 		case .scroll:
-			scrollWheel(byFingers: CGPoint(x: 0, y: d.midpoint.y - lastTwoFingerMidpoint.y))
+			scrollWheel(byFingers: CGPoint(x: (d.midpoint.x - lastTwoFingerMidpoint.x) * scrollAxis.x, y: (d.midpoint.y - lastTwoFingerMidpoint.y) * scrollAxis.y))
 		case .undecided:
 			break
 		}
@@ -1138,7 +1143,8 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 			accumulatedScrollY -= Float(intScrollY)
 		}
 		// sideways: fingers moving right bring in what's on the left
-		accumulatedScrollX -= Float(delta.x) * scrollWheelSpeed * direction
+		let contributionX = -Float(delta.x) * scrollWheelSpeed * direction
+		accumulatedScrollX += contributionX
 		let intScrollX = hostInt(accumulatedScrollX)
 		if intScrollX != 0 {
 			CParsec.sendWheelMsg(x: intScrollX, y: 0)
@@ -1149,6 +1155,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		let sdt = Float(snow - lastScrollMoveTime)
 		if sdt > 0.0005 && sdt < 0.1 {
 			scrollVelocity = scrollVelocity * 0.4 + (contribution / sdt) * 0.6
+			scrollVelocityX = scrollVelocityX * 0.4 + (contributionX / sdt) * 0.6
 		}
 		lastScrollMoveTime = snow
 	}
@@ -1167,7 +1174,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 
 	private func startScrollMomentum() {
 		guard CACurrentMediaTime() - lastScrollMoveTime < 0.06 else { return }
-		guard abs(scrollVelocity) > scrollStartSpeed else { return }
+		guard max(abs(scrollVelocity), abs(scrollVelocityX)) > scrollStartSpeed else { return }
 		scrollMomentumActive = true
 		ensureMomentumLink()
 	}
@@ -1186,6 +1193,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		edgeScrollActive = false
 		cursorVelocity = .zero
 		scrollVelocity = 0
+		scrollVelocityX = 0
 		momentumLink?.invalidate()
 		momentumLink = nil
 	}
@@ -1216,14 +1224,19 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		}
 
 		if scrollMomentumActive {
-			scrollVelocity *= Float(pow(scrollDecayPerSec, Double(dt)))
+			let decay = Float(pow(scrollDecayPerSec, Double(dt)))
+			scrollVelocity *= decay
+			scrollVelocityX *= decay
 			accumulatedScrollY += scrollVelocity * Float(dt)
+			accumulatedScrollX += scrollVelocityX * Float(dt)
 			let i = hostInt(accumulatedScrollY)
-			if i != 0 {
-				CParsec.sendWheelMsg(x: 0, y: i)
+			let ix = hostInt(accumulatedScrollX)
+			if i != 0 || ix != 0 {
+				CParsec.sendWheelMsg(x: ix, y: i)
 				accumulatedScrollY -= Float(i)
+				accumulatedScrollX -= Float(ix)
 			}
-			if abs(scrollVelocity) < scrollStopSpeed {
+			if max(abs(scrollVelocity), abs(scrollVelocityX)) < scrollStopSpeed {
 				scrollMomentumActive = false
 			} else {
 				stillActive = true

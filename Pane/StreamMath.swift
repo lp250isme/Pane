@@ -192,3 +192,58 @@ let reconnectBudget: Double = 120
 
 /// The bitrate asked of the host on cellular or Low Data Mode when none was picked: the host's default, at most 10 Mbps
 func meteredBitrate(hostDefault: Int) -> Int { hostDefault > 0 ? min(hostDefault, 10) : 10 }
+
+/// The link looks strained: frames pile up before decode, or the round trip has swollen well past its best
+func linkStrained(queuedFrames: UInt32, rtt: Double, bestRtt: Double) -> Bool {
+	// ponytail: guessed thresholds, tune from the [net] lines in diagnostics.log
+	queuedFrames >= 3 || (bestRtt > 0 && rtt > bestRtt * 2 + 30)
+}
+
+/// With no bitrate picked: steps the bitrate down while the link stays strained, back up after a calm spell,
+/// never above `ceiling` (the host default, less on cellular or a hot phone). Steps are the menu's values.
+struct AutoBitrate {
+	var strainedSince: Double?
+	var calmSince: Double?
+	var changedAt = -Double.infinity
+	var floor = 5
+
+	mutating func next(now: Double, strained: Bool, current: Int, ceiling: Int, steps: [Int]) -> Int? {
+		guard current > 0, ceiling > 0 else { return nil }
+		if current > ceiling {
+			changedAt = now
+			return steps.last { $0 <= ceiling } ?? ceiling
+		}
+		if strained {
+			calmSince = nil
+			let since = strainedSince ?? now
+			strainedSince = since
+			guard now - since >= 3, now - changedAt >= 10, current > floor else { return nil }
+			let down = max(steps.last { Double($0) <= Double(current) * 0.7 } ?? floor, floor)
+			guard down < current else { return nil }
+			strainedSince = nil
+			changedAt = now
+			return down
+		}
+		strainedSince = nil
+		let since = calmSince ?? now
+		calmSince = since
+		guard current < ceiling, now - since >= 30, now - changedAt >= 30 else { return nil }
+		calmSince = now
+		changedAt = now
+		return min(steps.first { $0 > current } ?? ceiling, ceiling)
+	}
+}
+
+/// How far a hot phone or Low Power Mode brings the ceiling down
+func loadCeiling(_ ceiling: Int, thermal: Int, lowPower: Bool) -> Int {
+	// thermal: ProcessInfo.ThermalState raw value, 2 = serious, 3 = critical
+	let f = thermal >= 3 ? 0.4 : thermal >= 2 ? 0.6 : lowPower ? 0.8 : 1
+	return max(Int(Double(ceiling) * f), 3)
+}
+
+/// Two fingers scrolling mostly one way drop the drift on the other, so a page doesn't scroll at a slant
+func mainAxis(_ d: CGPoint) -> CGPoint {
+	if abs(d.x) < abs(d.y) * 0.5 { return CGPoint(x: 0, y: d.y) }
+	if abs(d.y) < abs(d.x) * 0.5 { return CGPoint(x: d.x, y: 0) }
+	return d
+}

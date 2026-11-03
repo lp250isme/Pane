@@ -164,6 +164,9 @@ struct ParsecStatusBar: View {
 			ParsecBackgroundManager.shared.reconnectAttempts = 0
 			ParsecBackgroundManager.shared.lostAt = nil
 			isReconnecting = false
+			// maybe on another network now: its round trip is judged afresh
+			DataManager.model.bestRtt = 0
+			DataManager.model.autoBitrate = AutoBitrate()
 			appNote("[reconnect] live again")
 			ParsecView.getHostUserData()
 			var pumping = false
@@ -185,6 +188,26 @@ struct ParsecStatusBar: View {
 			diag("[net] rtt \(Int(m.networkLatency))ms, rtx +\(rtx >= lastRTx ? rtx - lastRTx : rtx), \(String(format: "%.1f", m.bitrate))Mbps, queue \(m.queuedFrames), decode \(String(format: "%.1f", m.decodeLatency))ms")
 			lastSampleAt = Date()
 			lastRTx = rtx
+		}
+
+		// no bitrate picked: follow the link, and ease off on a hot phone or in Low Power Mode
+		let model = DataManager.model
+		// in the background (Picture in Picture polls a frame at a time) the numbers say nothing about the link
+		if model.streamBitrate == nil, SettingsHandler.bitrate == 0, model.hostDefaultBitrate > 0, !pcs.networkFailure, !connectionLost,
+		   UIApplication.shared.applicationState == .active, !ParsecBackgroundManager.shared.isPaused {
+			let m = pcs.`self`.metrics.0
+			let rtt = Double(m.networkLatency)
+			if rtt > 0 && (model.bestRtt == 0 || rtt < model.bestRtt) { model.bestRtt = rtt }
+			let info = ProcessInfo.processInfo
+			let link = NetworkWatcher.shared.metered ? meteredBitrate(hostDefault: model.hostDefaultBitrate) : model.hostDefaultBitrate
+			let ceiling = loadCeiling(link, thermal: info.thermalState.rawValue, lowPower: info.isLowPowerModeEnabled)
+			let strained = linkStrained(queuedFrames: m.queuedFrames, rtt: rtt, bestRtt: model.bestRtt)
+			if let rate = model.autoBitrate.next(now: CACurrentMediaTime(), strained: strained, current: model.bitrate, ceiling: ceiling, steps: ParsecResolution.bitrates), rate != model.bitrate {
+				diag("[net] auto bitrate \(model.bitrate) -> \(rate) Mbps (\(strained ? "strained" : "calm"), ceiling \(ceiling), thermal \(info.thermalState.rawValue)\(info.isLowPowerModeEnabled ? ", low power" : ""))")
+				model.bitrate = rate
+				model.localChangeAt = Date()
+				CParsec.updateHostVideoConfig()
+			}
 		}
 
 		if showMenu || SettingsHandler.alwaysShowStatus {
@@ -633,6 +656,18 @@ struct ParsecView: View {
 			.disabled(SettingsHandler.alwaysShowStatus)
 		}
 
+		// the system's paste button reads this device's clipboard without asking each time
+		if #available(iOS 16.0, *) {
+			Section {
+				PasteButton(payloadType: String.self) { texts in
+					DispatchQueue.main.async { pasteToHost(texts.joined()) }
+				}
+				.labelStyle(.titleAndIcon)
+			} footer: {
+				Text("Pastes what you copied on this device where the cursor is. Text you copy on the host can be pasted here.")
+			}
+		}
+
 		Section {
 			Button(action: { closeMenu(then: .hideButtons) }) {
 				Label("Hide Buttons", systemImage: "eye.slash")
@@ -932,6 +967,8 @@ struct ParsecView: View {
 			ParsecBackgroundManager.shared.endSession()
 		}
 
+		// the renderer feeds Picture in Picture from its own thread: stop it before PiP lets go of its layer
+		self.parsecViewController.glkView.cleanUp()
 		if #available(iOS 15.0, *) {
 			PictureInPictureManager.shared.teardown()
 		}
@@ -940,7 +977,6 @@ struct ParsecView: View {
 		CParsec.disconnect()
 		DataManager.model.output = "none"
 		CParsec.drawRate = 0
-		self.parsecViewController.glkView.cleanUp()
 
 		parsecViewController.scrollView.zoomScale = 1.0
 		parsecViewController.scrollView.contentOffset = .zero
@@ -970,7 +1006,14 @@ struct ParsecView: View {
 		CParsec.updateHostVideoConfig()
 	}
 
-	func toggleConstantFps() {
+	func pasteToHost(_ text: String) {
+		showMenuPopover = false
+		// ponytail: one paste is one clipboard message; a quarter megabyte is plenty for text
+		guard !text.isEmpty, text.utf8.count <= 256_000 else { return }
+		CParsec.type(text, asKey: false)
+	}
+
+		func toggleConstantFps() {
 		DispatchQueue.main.async {
 			DataManager.model.constantFps.toggle()
 			DataManager.model.localChangeAt = Date()
