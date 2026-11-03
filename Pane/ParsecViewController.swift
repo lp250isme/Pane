@@ -709,8 +709,7 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 				onKeyboardCoversPicture?()
 			}
 			if SettingsHandler.cursorMode == .direct {
-				let bottomY = max(0, scrollView.contentSize.height - scrollView.bounds.height + height)
-				scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x, y: bottomY), animated: true)
+				scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x, y: maxScrollY), animated: true)
 				onKeyboardVisibilityChanged?(true)
 				return
 			}
@@ -720,8 +719,7 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
             let screenMidY = scrollView.bounds.height / 2.1
 
             if mouseY > screenMidY {
-                 let maxOffsetY = max(0, scrollView.contentSize.height - scrollView.bounds.height + height)
-                 let newOffsetY = min(maxOffsetY, baseY + height / 1.25)
+                 let newOffsetY = min(maxScrollY, baseY + height / 1.25)
 
                  scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x, y: newOffsetY), animated: true)
 
@@ -734,6 +732,18 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 
 	var accessoryClearBand: CGFloat {
 		keyboardAccessoriesView?.subviews.first?.frame.minY ?? 0
+	}
+
+	// how far down the view scrolls: with the keyboard up, until the picture's bottom edge meets it, not the
+	// black band the host's aspect leaves under the picture
+	var maxScrollY: CGFloat {
+		let keyboard = keyboardVisible ? keyboardHeight : 0
+		var band: CGFloat = 0
+		let w = contentView.bounds.width, h = contentView.bounds.height
+		if keyboard > 0, CParsec.hostWidth > 0, CParsec.hostHeight > 0, w > 0 {
+			band = (h - min(h, w * CGFloat(CParsec.hostHeight / CParsec.hostWidth))) / 2 * scrollView.zoomScale
+		}
+		return max(0, scrollView.contentSize.height - scrollView.bounds.height + max(0, keyboard - band))
 	}
 
 	func pictureShiftAboveKeyboard(_ keyboard: CGFloat) -> CGFloat? {
@@ -779,7 +789,7 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 		}
 		let t = gesture.translation(in: view)
 		let maxX = max(0, scrollView.contentSize.width - scrollView.bounds.width)
-		let maxY = max(0, scrollView.contentSize.height - scrollView.bounds.height + scrollView.contentInset.bottom)
+		let maxY = maxScrollY
 		let x = min(max(0, panStartOffset.x - t.x), maxX)
 		let y = min(max(-scrollView.contentInset.top, panStartOffset.y - t.y), maxY)
 		scrollView.setContentOffset(CGPoint(x: x, y: y), animated: false)
@@ -787,7 +797,7 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 	}
 
 	@objc func handlePanHandleDoubleTap(_ gesture: UITapGestureRecognizer) {
-		let maxY = max(0, scrollView.contentSize.height - scrollView.bounds.height + scrollView.contentInset.bottom)
+		let maxY = maxScrollY
 		let y: CGFloat = scrollView.contentOffset.y < maxY / 2 ? maxY : 0
 		scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x, y: y), animated: true)
 	}
@@ -1396,7 +1406,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		let cursorFrame = u.frame.offsetBy(dx: -scrollView.frame.minX, dy: -scrollView.frame.minY)
 		let visibleBottom = scrollView.bounds.height - keyboardHeight
 		let margin = min(50, max(0, (visibleBottom - cursorFrame.height) / 2 - 1))
-		let maxOffsetY = max(0, scrollView.contentSize.height - scrollView.bounds.height + scrollView.contentInset.bottom)
+		let maxOffsetY = maxScrollY
 		var target = scrollView.contentOffset.y
 		if cursorFrame.maxY > visibleBottom - margin {
 			target += cursorFrame.maxY - (visibleBottom - margin)
@@ -1422,7 +1432,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		var targetX = cursorX - visibleWidth / 2
 		var targetY = cursorY - visibleHeight / 2
 		let maxX = max(0, scrollView.contentSize.width - scrollView.bounds.width)
-		let maxY = max(0, scrollView.contentSize.height - scrollView.bounds.height + bottomInset)
+		let maxY = maxScrollY
 		targetX = min(max(0, targetX), maxX)
 		targetY = min(max(0, targetY), maxY)
 		scrollView.setContentOffset(CGPoint(x: targetX, y: targetY), animated: false)
@@ -1450,7 +1460,7 @@ extension ParsecViewController: UIGestureRecognizerDelegate {
 		guard v != .zero, !CParsec.mouseInfo.mousePositionRelative else { return false }
 		let bottomInset = keyboardVisible ? keyboardHeight : 0.0
 		let maxX = max(0, scrollView.contentSize.width - scrollView.bounds.width)
-		let maxY = max(0, scrollView.contentSize.height - scrollView.bounds.height + bottomInset)
+		let maxY = maxScrollY
 		let off = scrollView.contentOffset
 		let next = CGPoint(x: min(max(0, off.x + v.x * dt), maxX), y: min(max(0, off.y + v.y * dt), maxY))
 		guard next != off else { return false }
