@@ -1826,11 +1826,7 @@ extension ParsecViewController: UIKeyInput, UITextInputTraits {
 
 	@objc func toolbarButtonClicked(_ sender: KeyboardButton) {
 		if !sender.combo.isEmpty {
-			// a combo carries its own modifiers; a latched one on top would make ⌘C something else
-			clearToolbarModifiers(sendToHost: true)
-			let keys = hostKeys(sender.combo, hostOS: DataManager.model.hostOS)
-			for key in keys { CParsec.sendKeyboardMessage(keyCode: key, pressed: true) }
-			for key in keys.reversed() { CParsec.sendKeyboardMessage(keyCode: key, pressed: false) }
+			sendCombo(hostKeys(sender.combo, hostOS: DataManager.model.hostOS))
 			return
 		}
 		let isToggleable = sender.isToggleable
@@ -2092,6 +2088,13 @@ extension ParsecViewController: TrackpadDelegate {
 		let off = scrollView.contentOffset
 		let anchor = CGPoint(x: cursorContentPos.x * scrollView.zoomScale - off.x, y: cursorContentPos.y * scrollView.zoomScale - off.y)
 		applyZoom(to: scrollView.zoomScale * scale, anchorInView: anchor)
+	}
+
+	// a combo carries its own modifiers; a latched one on top would make ⌘C something else
+	func sendCombo(_ keys: [UInt32]) {
+		clearToolbarModifiers(sendToHost: true)
+		for key in keys { CParsec.sendKeyboardMessage(keyCode: key, pressed: true) }
+		for key in keys.reversed() { CParsec.sendKeyboardMessage(keyCode: key, pressed: false) }
 	}
 
 	func trackpadGesture(_ gesture: TrackpadGesture) {

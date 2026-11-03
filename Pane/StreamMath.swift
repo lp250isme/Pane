@@ -68,7 +68,7 @@ enum HIDKey {
 	static let d: UInt32 = 7, h: UInt32 = 11, three: UInt32 = 32, four: UInt32 = 33, tab: UInt32 = 43, space: UInt32 = 44, f11: UInt32 = 68
 	static let right: UInt32 = 79, left: UInt32 = 80, down: UInt32 = 81, up: UInt32 = 82
 	static let ctrl: UInt32 = 224, shift: UInt32 = 225, alt: UInt32 = 226, gui: UInt32 = 227
-	static let a: UInt32 = 4, c: UInt32 = 6, v: UInt32 = 25, x: UInt32 = 27, z: UInt32 = 29
+	static let a: UInt32 = 4, c: UInt32 = 6, s: UInt32 = 22, v: UInt32 = 25, x: UInt32 = 27, z: UInt32 = 29, escape: UInt32 = 41
 	// stands for ⌘ on a Mac host and Ctrl elsewhere, resolved by hostKeys
 	static let primary: UInt32 = 0xFFFF
 }
@@ -246,4 +246,34 @@ func mainAxis(_ d: CGPoint) -> CGPoint {
 	if abs(d.x) < abs(d.y) * 0.5 { return CGPoint(x: 0, y: d.y) }
 	if abs(d.y) < abs(d.x) * 0.5 { return CGPoint(x: d.x, y: 0) }
 	return d
+}
+
+/// The bar's buttons after its fixed menu and keyboard, picked and ordered in Settings
+enum DeckAction: String, CaseIterable {
+	case pasteFromDevice, copy, paste, cut, undo, selectAll, missionControl, appWindows, showDesktop, switchApp, spotlight, screenshot, escape, mute, stats
+
+	static let standard: [DeckAction] = [.missionControl, .showDesktop, .pasteFromDevice, .copy, .paste, .undo]
+
+	/// What it sends as keys, the host's own way; nil for a button that does something else
+	func keys(hostOS: Int?) -> [UInt32]? {
+		let mac = hostOS == macHostOS
+		switch self {
+		case .copy: return hostKeys([HIDKey.primary, HIDKey.c], hostOS: hostOS)
+		case .paste: return hostKeys([HIDKey.primary, HIDKey.v], hostOS: hostOS)
+		case .cut: return hostKeys([HIDKey.primary, HIDKey.x], hostOS: hostOS)
+		case .undo: return hostKeys([HIDKey.primary, HIDKey.z], hostOS: hostOS)
+		case .selectAll: return hostKeys([HIDKey.primary, HIDKey.a], hostOS: hostOS)
+		case .switchApp: return mac ? [HIDKey.gui, HIDKey.tab] : [HIDKey.alt, HIDKey.tab]
+		case .spotlight: return mac ? [HIDKey.gui, HIDKey.space] : [HIDKey.gui, HIDKey.s]
+		case .screenshot: return mac ? [HIDKey.gui, HIDKey.shift, HIDKey.four] : [HIDKey.gui, HIDKey.shift, HIDKey.s]
+		case .escape: return [HIDKey.escape]
+		default: return nil
+		}
+	}
+}
+
+/// The saved list read back: names from another version dropped, each button once
+func deckActions(saved: [String]) -> [DeckAction] {
+	var seen = Set<DeckAction>()
+	return saved.compactMap(DeckAction.init(rawValue:)).filter { seen.insert($0).inserted }
 }

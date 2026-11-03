@@ -96,6 +96,16 @@
     "60 FPS": {
       "shouldTranslate": false
     },
+    "Adds it to the toolbar": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加到工具列"
+          }
+        }
+      }
+    },
     "Already streaming in another window": {
       "localizations": {
         "zh-Hant": {
@@ -112,6 +122,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "App Exposé"
+          }
+        }
+      }
+    },
+    "App Windows": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App 視窗"
           }
         }
       }
@@ -357,6 +377,16 @@
         }
       }
     },
+    "Copy (⌘C)": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拷貝（⌘C）"
+          }
+        }
+      }
+    },
     "Copy Name": {
       "localizations": {
         "zh-Hant": {
@@ -443,6 +473,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "游標大小"
+          }
+        }
+      }
+    },
+    "Cut (⌘X)": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剪下（⌘X）"
           }
         }
       }
@@ -935,6 +975,16 @@
         }
       }
     },
+    "More Buttons": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多按鈕"
+          }
+        }
+      }
+    },
     "Move screen in any direction": {
       "localizations": {
         "zh-Hant": {
@@ -1131,6 +1181,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "密碼"
+          }
+        }
+      }
+    },
+    "Paste (⌘V)": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "貼上（⌘V）"
+          }
+        }
+      }
+    },
+    "Paste from This Device": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "從這台裝置貼上"
           }
         }
       }
@@ -1345,6 +1415,16 @@
         }
       }
     },
+    "Screenshot (⌘⇧4)": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截圖（⌘⇧4）"
+          }
+        }
+      }
+    },
     "Scroll Speed": {
       "localizations": {
         "zh-Hant": {
@@ -1361,6 +1441,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "第二指"
+          }
+        }
+      }
+    },
+    "Select All (⌘A)": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全選（⌘A）"
           }
         }
       }
@@ -1525,6 +1615,16 @@
         }
       }
     },
+    "Switch App (⌘Tab)": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切換 App（⌘Tab）"
+          }
+        }
+      }
+    },
     "Switch Display": {
       "localizations": {
         "zh-Hant": {
@@ -1565,6 +1665,16 @@
         }
       }
     },
+    "They follow the menu and keyboard buttons and scroll when they don't all fit: below the picture when the trackpad is there, down the left edge otherwise. Paste from This Device needs iOS 16 or later.": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "排在選單與鍵盤按鈕後面，放不下時可以捲動：畫面下方有觸控板時在觸控板上方那排，沒有時沿著左側排列。「從這台裝置貼上」需要 iOS 16 以上。"
+          }
+        }
+      }
+    },
     "Three Finger Drag": {
       "extractionState": "manual",
       "localizations": {
@@ -1582,6 +1692,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "在背景逾時"
+          }
+        }
+      }
+    },
+    "Toolbar Buttons": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工具列按鈕"
           }
         }
       }
@@ -1642,6 +1762,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "兩步驟驗證"
+          }
+        }
+      }
+    },
+    "Undo (⌘Z)": {
+      "localizations": {
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "還原（⌘Z）"
           }
         }
       }

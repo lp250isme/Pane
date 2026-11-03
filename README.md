@@ -55,7 +55,7 @@ In portrait, and on the lower half of a half-folded iPhone Duo, the picture sits
 
 **Three Finger Drag** (Settings, off by default) matches the Mac's Accessibility > Pointer Control > Trackpad Options > Dragging Style. Pane can't read that setting from the Mac, so set both the same. When it's on, three fingers hold the left button and drag, and the swipes above move to four fingers.
 
-A toolbar under the trackpad holds the stream menu, Mission Control, Show Desktop and the keyboard, so nothing covers the picture. Fingers show as soft lights on the glass and each multi-finger gesture briefly names what it did.
+A toolbar under the trackpad holds the stream menu and the keyboard, then the buttons you pick in Settings > Toolbar Buttons, in your order: paste from the phone, ⌘C, ⌘V, Mission Control, Show Desktop and more. They scroll when they don't fit, and nothing covers the picture. Without the trackpad (held sideways, or with a mouse) the same buttons sit down the left edge under the menu button. Fingers show as soft lights on the glass and each multi-finger gesture briefly names what it did.
 
 With the keyboard up, the iPhone keyboard takes the lower part and a row of Mac keys sits above it: Esc, ⌃, ⌥, ⌘, ⇧, Tab, F1 to F12, the arrows and Delete, plus ⌘C, ⌘V, ⌘X, ⌘Z and ⌘A (Ctrl on a Windows host), and ⌘Tab, ⌘Space, ⌘H, ⌘⇧3 and ⌘⇧4, which iPadOS keeps for itself when typed on a hardware keyboard. A modifier stays down until the next key. Half open, the keys move into the keyboard's own top bar on the lower half when the system shows one; otherwise they stay above the keyboard. Turn the trackpad off in Settings > Trackpad Below the Picture.
 
@@ -203,7 +203,7 @@ Pane 是 kv 開發的開源 iOS / iPadOS [Parsec](https://parsec.app) 用戶端�
 
 **三指拖移**（設定裡，預設關閉）對應 Mac「輔助使用 > 指標控制 > 觸控式軌跡板選項 > 拖移方式」。Pane 讀不到 Mac 的設定，請兩邊設成一樣。打開後，三指移動就是按住左鍵拖曳，上面那些滑動手勢改用四指。
 
-觸控板下方的工具列放著串流選單、指揮中心、顯示桌面和鍵盤，畫面上不會有任何按鈕。手指在玻璃上會顯示淡淡的光點，多指手勢觸發時會短暫顯示它做了什麼。
+觸控板下方的工具列放著串流選單和鍵盤，後面接著你在「設定 > 工具列按鈕」挑選、排好順序的按鈕：從手機貼上、⌘C、⌘V、指揮中心、顯示桌面等等，放不下時可以左右捲動，畫面上不會有任何按鈕。沒有觸控板時（橫拿或接了滑鼠），同一組按鈕會沿著左側排在選單按鈕下方。手指在玻璃上會顯示淡淡的光點，多指手勢觸發時會短暫顯示它做了什麼。
 
 叫出鍵盤時，下方換成 iPhone 鍵盤，上面多一排 Mac 按鍵：Esc、⌃、⌥、⌘、⇧、Tab、F1 到 F12、方向鍵和 Delete，另外還有 ⌘C、⌘V、⌘X、⌘Z、⌘A（Windows 主機會送 Ctrl），以及 ⌘Tab、⌘Space、⌘H、⌘⇧3、⌘⇧4，後面這幾組用實體鍵盤按會被 iPadOS 攔走，所以放成按鈕。修飾鍵會按住，直到按下一個鍵。半摺時，系統有顯示鍵盤頂端的工具列，按鍵就會移進那裡，留在下半部；沒有的話就留在鍵盤上方。可以在「設定 > 畫面下方當觸控板」關閉。
 

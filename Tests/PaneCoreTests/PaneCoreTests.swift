@@ -314,3 +314,23 @@ import Testing
 		#expect(mainAxis(CGPoint(x: 8, y: 10)) == CGPoint(x: 8, y: 10))
 	}
 }
+
+@Suite struct DeckActionTests {
+	@Test func 存檔讀回時丟掉不認得的並去重() {
+		#expect(deckActions(saved: ["copy", "nope", "paste", "copy"]) == [.copy, .paste])
+		#expect(deckActions(saved: []) == [])
+	}
+
+	@Test func 按鍵照主機系統送() {
+		#expect(DeckAction.copy.keys(hostOS: macHostOS) == [HIDKey.gui, HIDKey.c])
+		#expect(DeckAction.undo.keys(hostOS: 0) == [HIDKey.ctrl, HIDKey.z])
+		#expect(DeckAction.switchApp.keys(hostOS: 0) == [HIDKey.alt, HIDKey.tab])
+		#expect(DeckAction.escape.keys(hostOS: nil) == [HIDKey.escape])
+		#expect(DeckAction.missionControl.keys(hostOS: macHostOS) == nil)
+		#expect(DeckAction.pasteFromDevice.keys(hostOS: macHostOS) == nil)
+	}
+
+	@Test func 預設組都是有效的按鈕() {
+		#expect(deckActions(saved: DeckAction.standard.map(\.rawValue)) == DeckAction.standard)
+	}
+}

@@ -78,6 +78,38 @@ struct SettingsForm: View {
 				Toggle("Start Muted", isOn: $settings.startMuted)
 			}
 
+			// always editing: drag to reorder, the minus takes a button off
+			Section {
+				ForEach(settings.deckButtons, id: \.self) { action in
+					Label(action.title(), systemImage: action.symbol())
+				}
+				.onMove { settings.deckButtons.move(fromOffsets: $0, toOffset: $1) }
+				.onDelete { settings.deckButtons.remove(atOffsets: $0) }
+			} header: {
+				Text("Toolbar Buttons")
+			} footer: {
+				Text("They follow the menu and keyboard buttons and scroll when they don't all fit: below the picture when the trackpad is there, down the left edge otherwise. Paste from This Device needs iOS 16 or later.")
+			}
+			.environment(\.editMode, .constant(.active))
+
+			let more = DeckAction.allCases.filter { !settings.deckButtons.contains($0) }
+			if !more.isEmpty {
+				Section(header: Text("More Buttons")) {
+					ForEach(more, id: \.self) { action in
+						Button(action: { settings.deckButtons.append(action) }) {
+							HStack {
+								Label(action.title(), systemImage: action.symbol())
+									.foregroundColor(.primary)
+								Spacer()
+								Image(systemName: "plus.circle.fill")
+									.foregroundColor(.green)
+							}
+						}
+						.accessibilityHint("Adds it to the toolbar")
+					}
+				}
+			}
+
 			Section {
 				Toggle("Auto Reconnect", isOn: $settings.autoReconnect)
 				if settings.autoReconnect {

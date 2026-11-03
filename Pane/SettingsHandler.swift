@@ -32,6 +32,7 @@ final class SettingsStore: ObservableObject {
 			"savedZoomEnabled": false,
 			"trackpadBelowPicture": true,
 			"threeFingerDrag": false,
+			"deckButtons": DeckAction.standard.map(\.rawValue),
 			"savedConstantFps": false
 		])
 		// values saved back when saving was off would now always apply
@@ -165,6 +166,11 @@ final class SettingsStore: ObservableObject {
 	var threeFingerDrag: Bool {
 		get { defaults.bool(forKey: "threeFingerDrag") }
 		set { store(newValue, "threeFingerDrag") }
+	}
+
+	var deckButtons: [DeckAction] {
+		get { deckActions(saved: defaults.stringArray(forKey: "deckButtons") ?? []) }
+		set { store(newValue.map(\.rawValue), "deckButtons") }
 	}
 
 	var zoomEnabled: Bool {

@@ -425,7 +425,7 @@ struct ParsecView: View {
 			}
 
 			// with the trackpad deck the controls live in its toolbar and the picture stays clear
-			if deckToolbar == nil || showKeyboard { VStack {
+			if deckToolbar == nil || showKeyboard { VStack(alignment: .leading, spacing: 0) {
 				if !hideOverlay {
 					HStack {
 						overlayMenuButton
@@ -444,30 +444,111 @@ struct ParsecView: View {
 						Spacer()
 					}
 				}
-				Spacer()
+				// the picked buttons down the left edge, scrolling when they run out of room; the keyboard's
+				// own key row has the combos while it's up
+				if !hideOverlay && !showKeyboard && !deckActions.isEmpty {
+					scrollingIfNeeded(.vertical) {
+						VStack(spacing: StreamChrome.spacing) { deckActionButtons(dimmed: !menuOpen) }
+							.padding(.vertical, StreamChrome.spacing)
+							.padding(.horizontal, StreamChrome.edge)
+					}
+					// only as wide as the buttons, the picture beside it keeps its touches
+					.fixedSize(horizontal: true, vertical: false)
+					.edgesIgnoringSafeArea(.horizontal)
+				}
 			}
+			.frame(maxHeight: .infinity, alignment: .top)
 			.zIndex(2) }
 		}
 	}
 
-	// the deck's toolbar: the stream menu, Mission Control, the desktop and the keyboard, Mac-dock style
+	// what this device and host can use: the paste button needs iOS 16, a Windows host has no App Exposé,
+	// and the stats button does nothing while Settings always shows them
+	var deckActions: [DeckAction] {
+		SettingsStore.shared.deckButtons.filter { action in
+			switch action {
+			case .pasteFromDevice:
+				if #available(iOS 16.0, *) { return true }
+				return false
+			case .appWindows: return dataModel.hostOS == nil || dataModel.hostOS == macHostOS
+			case .stats: return !SettingsHandler.alwaysShowStatus
+			default: return true
+			}
+		}
+	}
+
+	// the deck's toolbar, Mac-dock style: the menu and the keyboard stay put, the buttons picked in Settings
+	// follow and scroll when they don't fit
 	var deckToolbarView: some View {
-		let mac = dataModel.hostOS == macHostOS
-		return HStack(spacing: 16) {
+		HStack(spacing: 16) {
 			overlayMenuButton
-			deckButton("rectangle.3.group", label: mac ? "Mission Control" : "Task View") {
-				parsecViewController.trackpadGesture(.swipeUp)
-			}
-			deckButton("menubar.dock.rectangle", label: "Show Desktop") {
-				parsecViewController.trackpadGesture(.spread)
-			}
 			if !hideKeyboardButton {
 				keyboardButton
 			}
+			if !deckActions.isEmpty {
+				Capsule()
+					.fill(Color.white.opacity(0.2))
+					.frame(width: 1, height: 28)
+				scrollingIfNeeded(.horizontal) {
+					HStack(spacing: 16) { deckActionButtons(dimmed: false) }
+						// room for the glass's edge inside the scroll's clip
+						.padding(.vertical, 6)
+						.padding(.horizontal, 2)
+				}
+			}
 		}
+		.padding(.horizontal, 16)
 		.padding(.bottom, 6)
 		// it always sits on the stream's black
 		.environment(\.colorScheme, .dark)
+	}
+
+	// as they are when they fit, in a scroll view when they don't
+	@ViewBuilder
+	func scrollingIfNeeded<Content: View>(_ axis: Axis.Set, @ViewBuilder _ content: () -> Content) -> some View {
+		if #available(iOS 16.0, *) {
+			ViewThatFits(in: axis) {
+				content()
+				ScrollView(axis, showsIndicators: false) { content() }
+			}
+		} else {
+			ScrollView(axis, showsIndicators: false) { content() }
+		}
+	}
+
+	// over the picture they dim like the menu button while idle
+	@ViewBuilder
+	func deckActionButtons(dimmed: Bool) -> some View {
+		ForEach(deckActions, id: \.self) { action in
+			if action == .pasteFromDevice {
+				// the system's paste button reads this device's clipboard without asking each time. It must stay
+				// opaque and undimmed, or iOS ignores the tap
+				if #available(iOS 16.0, *) {
+					PasteButton(payloadType: String.self) { texts in
+						DispatchQueue.main.async { pasteToHost(texts.joined()) }
+					}
+					.labelStyle(.iconOnly)
+					.buttonBorderShape(.capsule)
+					.controlSize(.large)
+					.tint(Color(white: 0.25))
+				}
+			} else {
+				deckButton(action.symbol(muted: muted), label: action.title(mac: dataModel.hostOS == macHostOS)) { perform(action) }
+					.opacity(dimmed ? 0.6 : 1)
+			}
+		}
+	}
+
+	func perform(_ action: DeckAction) {
+		switch action {
+		case .missionControl: parsecViewController.trackpadGesture(.swipeUp)
+		case .appWindows: parsecViewController.trackpadGesture(.swipeDown)
+		case .showDesktop: parsecViewController.trackpadGesture(.spread)
+		case .mute: toggleMute()
+		case .stats: showStats.toggle()
+		default:
+			if let keys = action.keys(hostOS: dataModel.hostOS) { parsecViewController.sendCombo(keys) }
+		}
 	}
 
 	@ViewBuilder
@@ -1219,5 +1300,48 @@ private struct MenuOptionRow: View {
 			.contentShape(Rectangle())
 		}
 		.accessibilityAddTraits(checked ? .isSelected : [])
+	}
+}
+
+extension DeckAction {
+	func title(mac: Bool = true) -> LocalizedStringKey {
+		switch self {
+		case .pasteFromDevice: return "Paste from This Device"
+		case .copy: return "Copy (⌘C)"
+		case .paste: return "Paste (⌘V)"
+		case .cut: return "Cut (⌘X)"
+		case .undo: return "Undo (⌘Z)"
+		case .selectAll: return "Select All (⌘A)"
+		case .missionControl: return mac ? "Mission Control" : "Task View"
+		case .appWindows: return "App Windows"
+		case .showDesktop: return "Show Desktop"
+		case .switchApp: return "Switch App (⌘Tab)"
+		case .spotlight: return "Spotlight"
+		case .screenshot: return "Screenshot (⌘⇧4)"
+		case .escape: return "Esc"
+		case .mute: return "Sound"
+		case .stats: return "Show Stats"
+		}
+	}
+
+	func symbol(muted: Bool = false) -> String {
+		switch self {
+		// the system draws this one's icon on the bar: the same here
+		case .pasteFromDevice: return "doc.on.clipboard"
+		case .copy: return "doc.on.doc"
+		case .paste: return "arrow.down.doc"
+		case .cut: return "scissors"
+		case .undo: return "arrow.uturn.backward"
+		case .selectAll: return "selection.pin.in.out"
+		case .missionControl: return "rectangle.3.group"
+		case .appWindows: return "rectangle.stack"
+		case .showDesktop: return "menubar.dock.rectangle"
+		case .switchApp: return "rectangle.2.swap"
+		case .spotlight: return "magnifyingglass"
+		case .screenshot: return "camera.viewfinder"
+		case .escape: return "escape"
+		case .mute: return muted ? "speaker.slash" : "speaker.wave.2"
+		case .stats: return "chart.bar"
+		}
 	}
 }
