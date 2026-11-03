@@ -524,13 +524,10 @@ struct ParsecView: View {
 				// the system's paste button reads this device's clipboard without asking each time. It must stay
 				// opaque and undimmed, or iOS ignores the tap
 				if #available(iOS 16.0, *) {
-					PasteButton(payloadType: String.self) { texts in
-						DispatchQueue.main.async { pasteToHost(texts.joined()) }
-					}
-					.labelStyle(.iconOnly)
-					.buttonBorderShape(.capsule)
-					.controlSize(.large)
-					.tint(Color(white: 0.25))
+					// sized by an invisible twin of its neighbours, so the row stays even
+					deckButton(action.symbol(), label: action.title()) {}
+						.hidden()
+						.overlay(DevicePasteControl(onPaste: pasteToHost))
 				}
 			} else {
 				deckButton(action.symbol(muted: muted), label: action.title(mac: dataModel.hostOS == macHostOS)) { perform(action) }
@@ -1342,6 +1339,53 @@ extension DeckAction {
 		case .escape: return "escape"
 		case .mute: return muted ? "speaker.slash" : "speaker.wave.2"
 		case .stats: return "chart.bar"
+		}
+	}
+}
+
+/// The system's paste control (no prompt), at whatever size it is given; SwiftUI's PasteButton can't be sized
+@available(iOS 16.0, *)
+struct DevicePasteControl: UIViewRepresentable {
+	let onPaste: (String) -> Void
+
+	func makeCoordinator() -> Target { Target() }
+
+	func makeUIView(context: Context) -> UIPasteControl {
+		let config = UIPasteControl.Configuration()
+		config.displayMode = .iconOnly
+		config.cornerStyle = .capsule
+		// opaque, or iOS doesn't take the tap
+		config.baseBackgroundColor = UIColor(white: 0.2, alpha: 1)
+		config.baseForegroundColor = .white
+		let control = UIPasteControl(configuration: config)
+		control.target = context.coordinator
+		control.accessibilityLabel = String(localized: "Paste from This Device")
+		return control
+	}
+
+	func updateUIView(_ control: UIPasteControl, context: Context) {
+		context.coordinator.onPaste = onPaste
+	}
+
+	// the whole space it's offered, not its own smaller size
+	func sizeThatFits(_ proposal: ProposedViewSize, uiView: UIPasteControl, context: Context) -> CGSize? {
+		proposal.replacingUnspecifiedDimensions()
+	}
+
+	final class Target: UIResponder {
+		var onPaste: ((String) -> Void)?
+
+		override init() {
+			super.init()
+			pasteConfiguration = UIPasteConfiguration(forAccepting: String.self)
+		}
+
+		override func paste(itemProviders: [NSItemProvider]) {
+			guard let item = itemProviders.first(where: { $0.canLoadObject(ofClass: String.self) }) else { return }
+			_ = item.loadObject(ofClass: String.self) { [weak self] text, _ in
+				guard let text = text else { return }
+				DispatchQueue.main.async { self?.onPaste?(text) }
+			}
 		}
 	}
 }
