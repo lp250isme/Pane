@@ -88,7 +88,7 @@ struct SettingsForm: View {
 			} header: {
 				Text("Toolbar Buttons")
 			} footer: {
-				Text("They follow the menu and keyboard buttons and scroll when they don't all fit: below the picture when the trackpad is there, down the left edge otherwise. Paste from This Device needs iOS 16 or later.")
+				Text("They follow the menu and keyboard buttons and scroll when they don't all fit: below the picture when the trackpad is there, down the left edge otherwise. Paste from This Device asks first each time unless Settings > Pane > Paste from Other Apps is set to Allow.")
 			}
 			.environment(\.editMode, .constant(.active))
 

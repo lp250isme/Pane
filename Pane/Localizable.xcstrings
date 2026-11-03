@@ -1665,12 +1665,12 @@
         }
       }
     },
-    "They follow the menu and keyboard buttons and scroll when they don't all fit: below the picture when the trackpad is there, down the left edge otherwise. Paste from This Device needs iOS 16 or later.": {
+    "They follow the menu and keyboard buttons and scroll when they don't all fit: below the picture when the trackpad is there, down the left edge otherwise. Paste from This Device asks first each time unless Settings > Pane > Paste from Other Apps is set to Allow.": {
       "localizations": {
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "排在選單與鍵盤按鈕後面，放不下時可以捲動：畫面下方有觸控板時在觸控板上方那排，沒有時沿著左側排列。「從這台裝置貼上」需要 iOS 16 以上。"
+            "value": "排在選單與鍵盤按鈕後面，放不下時可以捲動：畫面下方有觸控板時在觸控板上方那排，沒有時沿著左側排列。「從這台裝置貼上」每次都會先詢問，到「設定 > Pane > 從其他 App 貼上」改成「允許」就不會再問。"
           }
         }
       }
