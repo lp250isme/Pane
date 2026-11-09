@@ -356,21 +356,8 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 
 		NotificationCenter.default.addObserver(
 			self,
-			selector: #selector(keyboardWillShow),
-			name: UIResponder.keyboardWillShowNotification,
-			object: nil
-		)
-		NotificationCenter.default.addObserver(
-			self,
 			selector: #selector(inputWasReleased),
 			name: NSNotification.Name("ParsecInputReleased"),
-			object: nil
-		)
-
-		NotificationCenter.default.addObserver(
-			self,
-			selector: #selector(keyboardWillHide),
-			name: UIResponder.keyboardWillHideNotification,
 			object: nil
 		)
 
@@ -383,13 +370,6 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 			NotificationCenter.default.addObserver(self, selector: #selector(mouseChanged), name: name, object: nil)
 		}
 
-		// Backgrounding / Control Center / system alerts can orphan touches; flush on resign.
-		NotificationCenter.default.addObserver(
-			self,
-			selector: #selector(appWillResignActive),
-			name: UIApplication.willResignActiveNotification,
-			object: nil
-		)
 		// made now rather than lazily inside a layout pass
 		_ = composer
 
@@ -490,6 +470,20 @@ class ParsecViewController: UIViewController, UIScrollViewDelegate, ParsecTouchI
 		}
 		#endif
 		return nil
+	}
+
+	// Registered here (not viewDidLoad) so they pair with the removal in viewWillDisappear.
+	// Remove first so a repeated appear never double-registers.
+	override func viewWillAppear(_ animated: Bool) {
+		super.viewWillAppear(animated)
+		let nc = NotificationCenter.default
+		nc.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
+		nc.removeObserver(self, name: UIResponder.keyboardWillHideNotification, object: nil)
+		nc.removeObserver(self, name: UIApplication.willResignActiveNotification, object: nil)
+		nc.addObserver(self, selector: #selector(keyboardWillShow), name: UIResponder.keyboardWillShowNotification, object: nil)
+		nc.addObserver(self, selector: #selector(keyboardWillHide), name: UIResponder.keyboardWillHideNotification, object: nil)
+		// Backgrounding / Control Center / system alerts can orphan touches; flush on resign.
+		nc.addObserver(self, selector: #selector(appWillResignActive), name: UIApplication.willResignActiveNotification, object: nil)
 	}
 
 	override func viewDidAppear(_ animated: Bool) {

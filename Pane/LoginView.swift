@@ -260,8 +260,9 @@ struct LoginView: View {
 
 						let json = try? JSONSerialization.jsonObject(with: data, options: [])
 						if let dict = json as? [String: Any], let isTFARequired = dict["tfa_required"] as? Bool {
-							print("Code output:")
-							print(dict)
+							#if DEBUG
+							print("Code output: tfa_required=\(isTFARequired)")
+							#endif
 							if isTFARequired {
 								presentTFAAlert = true
 							} else {
